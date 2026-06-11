@@ -16,19 +16,21 @@ A machine learning based system that detects network intrusions and classifies a
 ```
 NIDS/
 ├── data/
-│   ├── raw/                  # Original datasets (not pushed to GitHub)
+│   ├── raw/                        # Original datasets (not pushed to GitHub)
 │   │   ├── KDDTrain+.txt
 │   │   ├── KDDTest+.txt
-│   │   └── CICIDS2017/       # CSV files per day
-│   └── processed/            # Cleaned and feature-engineered data
-├── notebooks/                # Jupyter notebooks for EDA and experiments
-├── models/                   # Saved trained models (.pkl, .json)
-├── backend/                  # Flask / FastAPI prediction API
-├── frontend/                 # React dashboard
-├── load_kdd.py               # Load and label KDD dataset
-├── load_cicids.py            # Combine and clean CICIDS2017 dataset
-├── check_env.py              # Verify Python environment and packages
-├── requirements.txt          # All project dependencies
+│   │   └── CICIDS2017/             # CSV files per day
+│   └── processed/                  # Cleaned and feature-engineered data
+├── notebooks/
+│   └── 01_eda_nslkdd.ipynb         # EDA on NSL-KDD dataset
+├── models/                         # Saved trained models (.pkl, .json)
+├── backend/                        # Flask / FastAPI prediction API
+├── frontend/                       # React dashboard
+├── venv/                           # Virtual environment (not pushed to GitHub)
+├── load_kdd.py                     # Load and label KDD dataset
+├── load_cicids.py                  # Combine and clean CICIDS2017 dataset
+├── check_env.py                    # Verify Python environment and packages
+├── requirements.txt                # All project dependencies
 └── .gitignore
 ```
 
