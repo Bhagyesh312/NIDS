@@ -20,11 +20,19 @@ NIDS/
 │   │   ├── KDDTrain+.txt
 │   │   ├── KDDTest+.txt
 │   │   └── CICIDS2017/             # CSV files per day
-│   └── processed/                  # Cleaned and feature-engineered data
+│   └── processed/                  # Generated after running preprocessing notebook
+│       ├── X_train.npy / y_train.npy
+│       ├── X_val.npy   / y_val.npy
+│       ├── X_test.npy  / y_test.npy
+│       ├── scaler.pkl
+│       ├── label_encoders.pkl
+│       ├── target_encoder.pkl
+│       └── feature_names.pkl
 ├── notebooks/
-│   └── 01_eda_nslkdd.ipynb         # EDA on NSL-KDD dataset
-├── models/                         # Saved trained models (.pkl, .json)
-├── backend/                        # Flask / FastAPI prediction API
+│   ├── 01_eda_nslkdd.ipynb         # Exploratory Data Analysis
+│   └── 02_preprocessing.ipynb      # Encoding, SMOTE, scaling, save processed data
+├── models/                         # Saved trained models (generated after training)
+├── backend/                        # FastAPI prediction API
 ├── frontend/                       # React dashboard
 ├── venv/                           # Virtual environment (not pushed to GitHub)
 ├── load_kdd.py                     # Load and label KDD dataset
@@ -66,11 +74,6 @@ Download the datasets and place them in the correct folders:
 - `data/raw/CICIDS2017/*.csv`
 
 > Data files are excluded from GitHub via `.gitignore` due to their large size.
-
-### 5. Verify your environment
-```bash
-python check_env.py
-```
 
 ---
 
