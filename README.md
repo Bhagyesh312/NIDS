@@ -29,7 +29,6 @@ NIDS/
 ├── venv/                           # Virtual environment (not pushed to GitHub)
 ├── load_kdd.py                     # Load and label KDD dataset
 ├── load_cicids.py                  # Combine and clean CICIDS2017 dataset
-├── check_env.py                    # Verify Python environment and packages
 ├── requirements.txt                # All project dependencies
 └── .gitignore
 ```
