@@ -1,21 +1,45 @@
-# Data files (too large for GitHub)
+# ── Data files (too large for GitHub) ──────────────────────────
 data/raw/
 data/processed/
 
-# Python cache
+# ── Python ──────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
 
-# Virtual environment
+# ── Virtual environment ─────────────────────────────────────────
 venv/
 env/
+.env
 
-# Model files
+# ── Model files (generated after training) ──────────────────────
 models/
 
-# Jupyter checkpoints
+# ── Jupyter ─────────────────────────────────────────────────────
 .ipynb_checkpoints/
+*.ipynb_meta
 
-# IDE
+# ── Frontend ────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ── Backend ─────────────────────────────────────────────────────
+backend/__pycache__/
+backend/.env
+
+# ── IDE ─────────────────────────────────────────────────────────
 .vscode/
+.idea/
+*.suo
+*.user
+
+# ── OS ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
