@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, Download, Loader, FileText } from 'lucide-react'
 import Badge from '../components/Badge'
 import { batchPredict } from '../lib/api'
 
 export default function Batch() {
+  useEffect(() => { document.title = 'NIDS · Batch Predict' }, [])
   const [file, setFile]         = useState(null)
   const [results, setResults]   = useState(null)
   const [loading, setLoading]   = useState(false)

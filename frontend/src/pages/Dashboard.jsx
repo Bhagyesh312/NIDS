@@ -7,7 +7,7 @@ import Header from '../components/Header'
 import StatCards from '../components/StatCards'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS, categoryColors, CATEGORIES } from '../lib/colors'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Command, X } from 'lucide-react'
 import { useReady } from '../lib/readyContext'
 
@@ -141,6 +141,8 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
   const [hint, setHint]               = useState(() => !sessionStorage.getItem('cmd-hint-dismissed'))
   const [timeRange, setTimeRange]     = useState('24h')
   const [alertFilter, setAlertFilter] = useState('All')
+
+  useEffect(() => { document.title = 'NIDS · Dashboard' }, [])
 
   const trafficChartData = trafficData[timeRange]
   const filteredAlerts = alertFilter === 'All'

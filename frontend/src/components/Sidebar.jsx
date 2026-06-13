@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ShieldCheck, LayoutDashboard, Bell, Upload, FileText, Settings } from 'lucide-react'
+import { ShieldCheck, LayoutDashboard, Bell, Upload, FileText, Settings, BookOpen } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
 
 const links = [
+  { to: '/info',     label: 'Info',       icon: BookOpen },
   { to: '/',         label: 'Dashboard',  icon: LayoutDashboard },
   { to: '/alerts',   label: 'Alerts',     icon: Bell, badge: 3 },
   { to: '/batch',    label: 'Upload CSV', icon: Upload },
@@ -56,7 +57,7 @@ export default function Sidebar() {
             animate={ready ? { opacity: 1, x: 0 } : { opacity: 0, x: -16 }}
             transition={{ delay: 0.15 + i * 0.06, duration: 0.3 }}
           >
-            <NavLink to={to} end={to === '/'}>
+            <NavLink to={to} end={to === '/' || to === '/info'}>
               {({ isActive }) => (
                 <motion.div
                   whileHover={{ x: 3 }}

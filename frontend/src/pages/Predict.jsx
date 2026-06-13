@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Crosshair, Loader } from 'lucide-react'
 import Badge from '../components/Badge'
@@ -39,6 +39,7 @@ const inputStyle = {
 }
 
 export default function Predict() {
+  useEffect(() => { document.title = 'NIDS · Predict' }, [])
   const [form, setForm]       = useState(defaultForm)
   const [result, setResult]   = useState(null)
   const [loading, setLoading] = useState(false)

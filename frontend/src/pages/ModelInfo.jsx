@@ -43,6 +43,7 @@ const HEAT_COLORS = (val, max) => {
 
 export default function ModelInfo() {
   const [info, setInfo] = useState(mockModel)
+  useEffect(() => { document.title = 'NIDS · Model Info' }, [])
 
   useEffect(() => {
     getModelInfo().then(r => setInfo(r.data)).catch(() => {})
