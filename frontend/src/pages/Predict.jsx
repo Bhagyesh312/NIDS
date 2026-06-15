@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Crosshair, Loader } from 'lucide-react'
+import { Crosshair } from 'lucide-react'
 import Badge from '../components/Badge'
+import UIverseButton from '../components/UIverseButton'
+import UIverseLoader from '../components/UIverseLoader'
 import { predict } from '../lib/api'
+import { CATEGORY_COLORS } from '../lib/colors'
 
 const defaultForm = {
   duration: 0, protocol_type: 'tcp', service: 'http', flag: 'SF',
@@ -12,41 +15,42 @@ const defaultForm = {
 }
 
 const fields = [
-  { key: 'duration',        label: 'Duration',         type: 'number' },
-  { key: 'protocol_type',   label: 'Protocol',         type: 'select', options: ['tcp','udp','icmp'] },
-  { key: 'service',         label: 'Service',          type: 'select', options: ['http','ftp','smtp','ssh','other'] },
-  { key: 'flag',            label: 'Flag',             type: 'select', options: ['SF','S0','REJ','RSTO','SH'] },
-  { key: 'src_bytes',       label: 'Src Bytes',        type: 'number' },
-  { key: 'dst_bytes',       label: 'Dst Bytes',        type: 'number' },
-  { key: 'logged_in',       label: 'Logged In',        type: 'select', options: ['0','1'] },
-  { key: 'count',           label: 'Count',            type: 'number' },
-  { key: 'srv_count',       label: 'Srv Count',        type: 'number' },
-  { key: 'serror_rate',     label: 'SError Rate',      type: 'number' },
-  { key: 'rerror_rate',     label: 'RError Rate',      type: 'number' },
-  { key: 'same_srv_rate',   label: 'Same Srv Rate',    type: 'number' },
-  { key: 'diff_srv_rate',   label: 'Diff Srv Rate',    type: 'number' },
+  { key: 'duration',      label: 'Duration',      type: 'number' },
+  { key: 'protocol_type', label: 'Protocol',      type: 'select', options: ['tcp','udp','icmp'] },
+  { key: 'service',       label: 'Service',       type: 'select', options: ['http','ftp','smtp','ssh','other'] },
+  { key: 'flag',          label: 'Flag',          type: 'select', options: ['SF','S0','REJ','RSTO','SH'] },
+  { key: 'src_bytes',     label: 'Src Bytes',     type: 'number' },
+  { key: 'dst_bytes',     label: 'Dst Bytes',     type: 'number' },
+  { key: 'logged_in',     label: 'Logged In',     type: 'select', options: ['0','1'] },
+  { key: 'count',         label: 'Count',         type: 'number' },
+  { key: 'srv_count',     label: 'Srv Count',     type: 'number' },
+  { key: 'serror_rate',   label: 'SError Rate',   type: 'number' },
+  { key: 'rerror_rate',   label: 'RError Rate',   type: 'number' },
+  { key: 'same_srv_rate', label: 'Same Srv Rate', type: 'number' },
+  { key: 'diff_srv_rate', label: 'Diff Srv Rate', type: 'number' },
 ]
 
 const inputStyle = {
-  background: '#0A0A0A',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  color: '#F1F1EE',
+  background: '#0d0d0d',
+  border: '1px solid #1f1f1f',
+  borderRadius: 7,
+  color: '#e2e2e2',
   fontSize: 13,
   padding: '8px 12px',
   width: '100%',
   outline: 'none',
+  fontFamily: 'Inter, sans-serif',
 }
 
 export default function Predict() {
   useEffect(() => { document.title = 'NIDS · Predict' }, [])
+
   const [form, setForm]       = useState(defaultForm)
   const [result, setResult]   = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
 
-  const handleChange = (key, val) =>
-    setForm(f => ({ ...f, [key]: val }))
+  const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -63,24 +67,25 @@ export default function Predict() {
     }
   }
 
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-      className="space-y-6">
+  const resultColor = result ? CATEGORY_COLORS[result.prediction] || '#e2e2e2' : '#e2e2e2'
 
-      <div>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Predict</h1>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Enter network flow features to classify attack type</p>
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#f0f0f0' }}>Predict</h1>
+        <p style={{ color: '#555', fontSize: 13, marginTop: 3 }}>Enter network flow features to classify attack type</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
-        {/* Form */}
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+        {/* Form card */}
+        <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
               {fields.map(({ key, label, type, options }) => (
                 <div key={key}>
-                  <label style={{ color: '#888', fontSize: 12, display: 'block', marginBottom: 6 }}>{label}</label>
+                  <label style={{ color: '#555', fontSize: 11, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
                   {type === 'select' ? (
                     <select style={inputStyle} value={form[key]} onChange={e => handleChange(key, e.target.value)}>
                       {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -93,49 +98,87 @@ export default function Predict() {
               ))}
             </div>
 
-            <button type="submit" disabled={loading}
-              style={{
-                background: '#0066FF', color: '#fff', border: 'none', borderRadius: 8,
-                padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                opacity: loading ? 0.7 : 1,
-              }}>
-              {loading ? <Loader size={16} className="animate-spin" /> : <Crosshair size={16} />}
-              {loading ? 'Predicting...' : 'Predict'}
-            </button>
+            {/* UIverse button from uiverse.io by hakemdamer222 */}
+            <UIverseButton type="submit" disabled={loading}>
+              <Crosshair size={15} />
+              {loading ? 'Analyzing...' : 'Analyze Traffic'}
+            </UIverseButton>
           </form>
         </div>
 
-        {/* Result */}
-        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Result</h2>
+        {/* Result card */}
+        <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 20 }}>Result</div>
 
           <AnimatePresence mode="wait">
-            {error && (
-              <motion.p key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ color: '#E24B4A', fontSize: 13 }}>{error}</motion.p>
+
+            {/* UIverse loader from uiverse.io by Uncannypotato69 */}
+            {loading && (
+              <motion.div key="loading"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 24 }}
+              >
+                <UIverseLoader text="Analyzing..." />
+                <p style={{ fontSize: 11, color: '#444' }}>Running XGBoost classifier...</p>
+              </motion.div>
             )}
 
-            {result && (
-              <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Badge label={result.prediction} />
-                  <span style={{ color: '#888', fontSize: 13 }}>
-                    Confidence: <span style={{ color: '#F1F1EE', fontWeight: 600 }}>{(result.confidence * 100).toFixed(1)}%</span>
-                  </span>
+            {error && !loading && (
+              <motion.div key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div style={{
+                  background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                  borderRadius: 8, padding: '14px 16px',
+                }}>
+                  <p style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>{error}</p>
+                  <p style={{ color: '#555', fontSize: 11, marginTop: 6 }}>Run: <code style={{ color: '#888', fontFamily: 'monospace' }}>cd backend && uvicorn main:app --reload</code></p>
+                </div>
+              </motion.div>
+            )}
+
+            {result && !loading && (
+              <motion.div key="result"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+              >
+                {/* Prediction */}
+                <div style={{
+                  background: `${resultColor}0d`,
+                  border: `1px solid ${resultColor}30`,
+                  borderRadius: 10, padding: '16px 18px',
+                }}>
+                  <div style={{ fontSize: 11, color: '#555', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Classification</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Badge label={result.prediction} />
+                    <span style={{ fontSize: 22, fontWeight: 700, color: resultColor, fontVariantNumeric: 'tabular-nums' }}>
+                      {(result.confidence * 100).toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: 12, color: '#555' }}>confidence</span>
+                  </div>
+
+                  {/* Confidence bar */}
+                  <div style={{ marginTop: 12, height: 4, background: '#1f1f1f', borderRadius: 4 }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(result.confidence * 100).toFixed(1)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+                      style={{ height: '100%', background: resultColor, borderRadius: 4 }}
+                    />
+                  </div>
                 </div>
 
+                {/* Top features */}
                 {result.top_features && (
                   <div>
-                    <p style={{ color: '#888', fontSize: 12, marginBottom: 10 }}>Top contributing features:</p>
-                    <div className="space-y-2">
+                    <p style={{ color: '#555', fontSize: 11, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Top contributing features</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {result.top_features.map(([feat, val]) => (
-                        <div key={feat} className="flex items-center gap-3">
-                          <span style={{ color: '#888', fontSize: 12, width: 160 }}>{feat}</span>
-                          <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 4 }}>
-                            <div style={{ width: `${Math.min(Math.abs(val) * 100, 100)}%`, height: '100%',
-                              background: val > 0 ? '#0066FF' : '#E24B4A', borderRadius: 4 }} />
+                        <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ color: '#555', fontSize: 11, width: 150, flexShrink: 0, fontFamily: 'monospace' }}>{feat}</span>
+                          <div style={{ flex: 1, height: 3, background: '#1f1f1f', borderRadius: 3 }}>
+                            <div style={{
+                              width: `${Math.min(Math.abs(val) * 100, 100)}%`, height: '100%',
+                              background: val > 0 ? '#3b82f6' : '#ef4444', borderRadius: 3,
+                            }} />
                           </div>
                         </div>
                       ))}
@@ -145,14 +188,20 @@ export default function Predict() {
               </motion.div>
             )}
 
-            {!result && !error && (
-              <motion.p key="empty" style={{ color: '#888', fontSize: 13 }}>
-                Fill in the form and click Predict to see results.
-              </motion.p>
+            {!result && !loading && !error && (
+              <motion.div key="empty"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 12 }}
+              >
+                <Crosshair size={28} color="#2a2a2a" />
+                <p style={{ color: '#444', fontSize: 13, textAlign: 'center' }}>
+                  Fill in the network flow features<br />and click Analyze Traffic
+                </p>
+              </motion.div>
             )}
+
           </AnimatePresence>
         </div>
-
       </div>
     </motion.div>
   )

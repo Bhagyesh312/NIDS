@@ -30,6 +30,9 @@ frontend/.env
 frontend/.env.local
 frontend/.env.production
 
+# NOTE: frontend/package-lock.json IS committed intentionally
+# so collaborators get identical dependency versions on npm install
+
 # ── Backend ─────────────────────────────────────────────────────
 backend/__pycache__/
 backend/.env

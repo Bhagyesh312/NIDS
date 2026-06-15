@@ -6,11 +6,13 @@ A machine learning powered security dashboard that detects and classifies networ
 
 | Category | Color | Description |
 |---|---|---|
-| **Normal** | 🟢 Green | Legitimate network traffic |
-| **DoS** | 🔴 Red | Denial of Service attacks (neptune, smurf, back…) |
-| **Probe** | 🔵 Sky Blue | Surveillance and scanning (portsweep, nmap, ipsweep…) |
-| **R2L** | 🟡 Amber | Remote to Local attacks (guess_passwd, ftp_write…) |
-| **U2R** | 🟣 Purple | User to Root attacks (buffer_overflow, rootkit…) |
+| **Normal** | 🟢 `#22c55e` | Legitimate network traffic |
+| **DoS** | 🔴 `#ef4444` | Denial of Service attacks (neptune, smurf, back…) |
+| **Probe** | 🔵 `#38bdf8` | Surveillance and scanning (portsweep, nmap, ipsweep…) |
+| **R2L** | 🟡 `#f59e0b` | Remote to Local attacks (guess_passwd, ftp_write…) |
+| **U2R** | 🟣 `#a78bfa` | User to Root attacks (buffer_overflow, rootkit…) |
+
+> All 5 colors are defined once in `frontend/src/lib/colors.js` and imported everywhere — no hardcoded values in components.
 
 ---
 
@@ -38,11 +40,12 @@ NIDS/
 ├── backend/                        # FastAPI prediction API (in progress)
 ├── frontend/                       # React + Vite dashboard
 │   ├── src/
-│   │   ├── components/             # Sidebar, Header, StatCards, Badge, ThreatFeed, CommandPalette
-│   │   ├── pages/                  # Dashboard, Predict, Batch, ModelInfo
+│   │   ├── components/             # UI components (see below)
+│   │   ├── pages/                  # Dashboard, Alerts, Predict, Batch, Globe, Info, ModelInfo
 │   │   ├── lib/                    # api.js, colors.js, readyContext.js
 │   │   └── hooks/                  # useCountUp.js
-│   └── package.json
+│   ├── package.json
+│   └── package-lock.json           # Locked dependency versions for reproducible installs
 ├── venv/                           # Virtual environment (not pushed to GitHub)
 ├── load_kdd.py                     # Load and label KDD dataset
 ├── load_cicids.py                  # Combine and clean CICIDS2017 dataset
@@ -52,15 +55,47 @@ NIDS/
 
 ---
 
-## Dashboard Features
+## Dashboard Pages
 
-- **Live Stat Cards** — Total traffic, attacks detected, normal traffic, model confidence with count-up animation
-- **Traffic Overview** — Dual Y-axis area chart with time range filters (6h / 12h / 24h / 7d)
-- **Attack Distribution** — Animated donut chart with percentage bars per category
-- **Recent Alerts** — Filterable table by attack type (All / DoS / Probe / R2L / U2R) with staggered row animations
-- **Threat Feed** — Terminal-style live stream of simulated network events (slide-in panel)
-- **Command Palette** — Press `Ctrl K` to search pages and look up attack types
-- **Welcome Modal** — Intro screen on first visit, all dashboard animations trigger on entry
+| Page | Route | Description |
+|---|---|---|
+| Dashboard | `/` | Live stat cards, traffic chart, donut, recent alerts |
+| Alerts | `/alerts` | Full sortable/filterable alert table with CSV export |
+| Predict | `/predict` | Single flow prediction form with confidence display |
+| Batch | `/batch` | Upload CSV for bulk predictions |
+| Globe | `/globe` | Interactive 3D threat origin map |
+| Info | `/info` | Attack type encyclopedia with detection features |
+| Model Info | `/model` | Confusion matrix, feature importance, model details |
+
+---
+
+## Frontend Features & Animations
+
+- **Welcome Modal** — Intro screen on first visit; all dashboard animations are gated and only trigger after clicking "Enter Dashboard"
+- **Flowing Menu** — Hamburger-triggered sidebar overlay with cascading wave animation (blur → clear stagger per link)
+- **Stat Cards** — UIverse.io 3D ticket-style cards with scrolling grid background, 3D hover tilt, and shimmer overlay
+- **Count-up Numbers** — All stat values animate from 0 using `requestAnimationFrame` + `easeOutExpo`
+- **Traffic Chart** — Dual Y-axis area chart with time range filter (6h / 12h / 24h / 7d) and animated chart switch
+- **Donut Chart** — Animated spin-in with percentage bars that fill on load
+- **Alerts Table** — Sortable, searchable, paginated; rows animate in with stagger; live filter with exit animations
+- **Threat Feed** — Terminal-style sliding panel with live mock event stream, pause/play, attack count flash
+- **Command Palette** — `Ctrl K` spotlight search with blur backdrop, keyboard navigation, attack type info
+- **Globe** — Interactive 3D globe (globe.gl + three.js) with pulsing attack rings, animated arcs, glassmorphism popup
+- **Error Boundary** — Catches any render crash with a recovery UI
+- **Skeleton Loaders** — Shimmer placeholders shown during simulated data fetching
+- **Page Titles** — Each page updates `document.title` dynamically
+
+---
+
+## UIverse.io Credits
+
+UI components sourced and adapted from [UIverse.io](https://uiverse.io) — colors and styles adjusted to match the NIDS dark theme:
+
+| Component | Author | Used In |
+|---|---|---|
+| 3D Ticket Stat Card | [zeeshan_2112](https://uiverse.io/zeeshan_2112) | Dashboard stat cards |
+| Gradient Push Button | [hakemdamer222](https://uiverse.io/hakemdamer222) | Predict page submit button |
+| Sliding Invert Loader | [Uncannypotato69](https://uiverse.io/Uncannypotato69) | Predict page loading state |
 
 ---
 
@@ -85,22 +120,23 @@ pip install -r requirements.txt
 #    KDDTrain+.txt, KDDTest+.txt, CICIDS2017/*.csv
 
 # 5. Run EDA notebook
-jupyter lab notebooks/01_eda_nslkdd.ipynb
+python -m jupyter lab notebooks/01_eda_nslkdd.ipynb
 
 # 6. Run preprocessing
-jupyter lab notebooks/02_preprocessing.ipynb
+python -m jupyter lab notebooks/02_preprocessing.ipynb
 ```
 
 ### Frontend (React)
 
 ```bash
 cd frontend
-npm install
+npm install        # installs exact versions from package-lock.json
 npm run dev
 # Opens at http://localhost:5173
 ```
 
-> Data files and `node_modules` are excluded via `.gitignore`.
+> Data files and `node_modules` are excluded via `.gitignore`.  
+> `package-lock.json` is committed so both collaborators get identical dependency trees.
 
 ---
 
@@ -125,9 +161,12 @@ npm run dev
 | Backend API | FastAPI + uvicorn |
 | Frontend | React 19 + Vite |
 | Charts | Recharts |
-| Animations | Framer Motion, Lenis |
+| 3D Globe | globe.gl + three.js |
+| Animations | Framer Motion |
+| Smooth Scroll | Lenis |
 | Icons | Lucide React |
-| Styling | Tailwind CSS |
+| Styling | Tailwind CSS + custom CSS |
+| UI Components | UIverse.io (adapted) |
 
 ---
 

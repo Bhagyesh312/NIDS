@@ -1,0 +1,45 @@
+/* UIverse.io loader by Uncannypotato69 — adapted for NIDS dark theme */
+/* Original: white inverted box on light bg; adapted to blue accent on dark bg */
+
+.nids-loader-wrapper {
+  height: fit-content;
+  min-width: 3rem;
+  width: fit-content;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  letter-spacing: 0.2ch;
+  position: relative;
+  z-index: 0;
+  color: #3b82f6;        /* NIDS accent blue */
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+}
+
+.nids-loader-text {
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  mix-blend-mode: difference;
+  color: #f0f0f0;
+}
+
+.nids-loader-invertbox {
+  position: absolute;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  left: 0;
+  top: 0;
+  border-radius: 20%;
+  background-color: rgba(59, 130, 246, 0.15);   /* blue tint instead of white */
+  backdrop-filter: invert(100%) brightness(1.2);
+  animation: nids-loader-move 2s ease-in-out infinite;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+@keyframes nids-loader-move {
+  50% {
+    left: calc(100% - 2rem);
+  }
+}
