@@ -49,8 +49,8 @@ const panelVariants = {
 export default function FlowingMenu() {
   const [open, setOpen]         = useState(false)
   const [hovered, setHovered]   = useState(null)
-  const ready                   = useReady()
-  const location                = useLocation()
+  const ready = useReady()
+  const location = useLocation()
 
   // Close on route change
   useEffect(() => { setOpen(false) }, [location.pathname])
@@ -60,10 +60,6 @@ export default function FlowingMenu() {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
-
-  const activeLink = links.find(l =>
-    l.to === '/' ? location.pathname === '/' : location.pathname.startsWith(l.to)
-  )
 
   return (
     <>
@@ -117,48 +113,36 @@ export default function FlowingMenu() {
           </motion.button>
         </div>
 
-        {/* Active page indicator — collapsed state */}
-        {!open && activeLink && (
-          <div style={{ padding: '12px 14px 8px' }}>
-            <div style={{ fontSize: 10, color: '#333', marginBottom: 8, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Current</div>
-            <motion.div
-              key={activeLink.to}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 9,
-                padding: '9px 12px', borderRadius: 8,
-                background: `${activeLink.color}10`,
-                border: `1px solid ${activeLink.color}25`,
-              }}
-            >
-              <activeLink.icon size={15} color={activeLink.color} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: '#ccc' }}>{activeLink.label}</span>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Mini link list — collapsed state, all links dimmed */}
+        {/* Normal nav — all links always visible */}
         {!open && (
-          <nav style={{ flex: 1, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <nav style={{ flex: 1, padding: '8px 8px' }}>
             {links.map(({ to, label, icon: Icon, color, badge }) => {
               const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
-              if (isActive) return null
               return (
                 <NavLink key={to} to={to} end={to === '/' || to === '/info' || to === '/globe'}
                   style={{ textDecoration: 'none' }}>
                   <motion.div
-                    whileHover={{ x: 3, color: '#888' }}
+                    whileHover={{ x: 2 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 9,
-                      padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
-                      color: '#444', fontSize: 13,
+                      padding: '8px 10px', borderRadius: 6,
+                      fontSize: 13, fontWeight: isActive ? 500 : 400,
+                      color: isActive ? '#f0f0f0' : '#555',
+                      background: isActive ? '#1a1a1a' : 'transparent',
+                      marginBottom: 1, cursor: 'pointer',
+                      borderLeft: isActive ? `2px solid ${color}` : '2px solid transparent',
+                      paddingLeft: isActive ? 8 : 10,
                     }}
                   >
-                    <Icon size={14} color="#333" />
+                    <Icon size={15} color={isActive ? color : '#444'} />
                     <span style={{ flex: 1 }}>{label}</span>
                     {badge && (
-                      <span style={{ fontSize: 10, fontWeight: 600, background: '#ef4444', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>{badge}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600,
+                        background: '#ef4444', color: '#fff',
+                        borderRadius: 4, padding: '1px 5px',
+                      }}>{badge}</span>
                     )}
                   </motion.div>
                 </NavLink>

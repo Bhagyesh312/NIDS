@@ -138,7 +138,7 @@ const TT = ({ active, payload, label }) => {
 
 export default function Dashboard({ feedOpen, onFeedToggle }) {
   const ready = useReady()
-  const [hint, setHint]               = useState(() => !sessionStorage.getItem('cmd-hint-dismissed'))
+  const [hint, setHint]               = useState(() => !localStorage.getItem('cmd-hint-dismissed'))
   const [timeRange, setTimeRange]     = useState('24h')
   const [alertFilter, setAlertFilter] = useState('All')
 
@@ -150,7 +150,7 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
     : allAlerts.filter(a => a.type === alertFilter)
 
   const dismissHint = () => {
-    sessionStorage.setItem('cmd-hint-dismissed', '1')
+    localStorage.setItem('cmd-hint-dismissed', '1')
     setHint(false)
   }
 

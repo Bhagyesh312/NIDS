@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Crosshair } from 'lucide-react'
+import { Crosshair, Zap } from 'lucide-react'
 import Badge from '../components/Badge'
 import UIverseButton from '../components/UIverseButton'
 import UIverseLoader from '../components/UIverseLoader'
@@ -12,6 +12,34 @@ const defaultForm = {
   src_bytes: 491, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
   hot: 0, num_failed_logins: 0, logged_in: 0, count: 1, srv_count: 1,
   serror_rate: 0, rerror_rate: 0, same_srv_rate: 1, diff_srv_rate: 0,
+}
+
+// Sample flows for quick demo — realistic KDD values
+const SAMPLES = {
+  DoS: {
+    label: 'DoS sample',
+    color: CATEGORY_COLORS.DoS,
+    values: { duration: 0, protocol_type: 'tcp', service: 'http', flag: 'S0',
+      src_bytes: 0, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
+      hot: 0, num_failed_logins: 0, logged_in: 0, count: 511, srv_count: 511,
+      serror_rate: 1.0, rerror_rate: 0, same_srv_rate: 1.0, diff_srv_rate: 0 },
+  },
+  Probe: {
+    label: 'Probe sample',
+    color: CATEGORY_COLORS.Probe,
+    values: { duration: 0, protocol_type: 'tcp', service: 'private', flag: 'REJ',
+      src_bytes: 0, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
+      hot: 0, num_failed_logins: 0, logged_in: 0, count: 192, srv_count: 5,
+      serror_rate: 0, rerror_rate: 1.0, same_srv_rate: 0.03, diff_srv_rate: 0.06 },
+  },
+  Normal: {
+    label: 'Normal sample',
+    color: CATEGORY_COLORS.Normal,
+    values: { duration: 0, protocol_type: 'tcp', service: 'http', flag: 'SF',
+      src_bytes: 232, dst_bytes: 8153, land: 0, wrong_fragment: 0, urgent: 0,
+      hot: 0, num_failed_logins: 0, logged_in: 1, count: 5, srv_count: 5,
+      serror_rate: 0, rerror_rate: 0, same_srv_rate: 1.0, diff_srv_rate: 0 },
+  },
 }
 
 const fields = [
@@ -51,7 +79,6 @@ export default function Predict() {
   const [error, setError]     = useState(null)
 
   const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -81,6 +108,32 @@ export default function Predict() {
 
         {/* Form card */}
         <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
+          {/* Quick fill buttons */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>Quick fill with sample data:</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {Object.entries(SAMPLES).map(([key, s]) => (
+                <motion.button
+                  key={key}
+                  whileHover={{ borderColor: s.color, color: s.color }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => { setForm(s.values); setResult(null); setError(null) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: 'transparent',
+                    border: `1px solid #2a2a2a`,
+                    borderRadius: 6, padding: '5px 12px',
+                    color: '#555', fontSize: 11, cursor: 'pointer',
+                    transition: 'all 0.15s', fontFamily: 'Inter, sans-serif',
+                  }}
+                >
+                  <Zap size={10} />
+                  {s.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
               {fields.map(({ key, label, type, options }) => (

@@ -13,6 +13,8 @@ import ModelInfo from './pages/ModelInfo'
 import InfoPage from './pages/InfoPage'
 import GlobePage from './pages/GlobePage'
 import AlertsPage from './pages/AlertsPage'
+import ReportsPage from './pages/ReportsPage'
+import SettingsPage from './pages/SettingsPage'
 import { ReadyContext } from './lib/readyContext'
 
 const PageWrapper = ({ children }) => (
@@ -38,8 +40,8 @@ function AnimatedRoutes({ feedOpen, toggleFeed }) {
         <Route path="/model"    element={<PageWrapper><ModelInfo /></PageWrapper>} />
         <Route path="/globe"    element={<PageWrapper><ErrorBoundary fallbackMessage="Globe failed to load. Check your internet connection."><GlobePage /></ErrorBoundary></PageWrapper>} />
         <Route path="/alerts"   element={<PageWrapper><AlertsPage /></PageWrapper>} />
-        <Route path="/reports"  element={<PageWrapper><div style={{ color: '#555', padding: 40 }}>Reports — coming soon</div></PageWrapper>} />
-        <Route path="/settings" element={<PageWrapper><div style={{ color: '#555', padding: 40 }}>Settings — coming soon</div></PageWrapper>} />
+        <Route path="/reports"  element={<PageWrapper><ReportsPage /></PageWrapper>} />
+        <Route path="/settings" element={<PageWrapper><SettingsPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
   )

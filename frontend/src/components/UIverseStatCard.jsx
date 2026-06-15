@@ -17,9 +17,9 @@ export default function UIverseStatCard({ label, value, suffix = '', subLabel, c
 
             {/* Header */}
             <div className="t-header">
-              <div className="t-logo" style={{ '--t-accent': color }}>
-                {Icon && <Icon size={16} />}
-                NIDS
+              <div className="t-logo">
+                {Icon && <Icon size={16} color={color} />}
+                <span style={{ color: '#e2e2e2' }}>NIDS</span>
               </div>
               <div className="t-type" style={{ color, borderColor: color }}>
                 Live
@@ -27,7 +27,7 @@ export default function UIverseStatCard({ label, value, suffix = '', subLabel, c
             </div>
 
             {/* Big number */}
-            <div className="t-title" style={{ '--t-accent': color }}>
+            <div className="t-title" style={{ color }}>
               {value}{suffix}
             </div>
             <div className="t-subtitle">{label}</div>
@@ -40,7 +40,7 @@ export default function UIverseStatCard({ label, value, suffix = '', subLabel, c
               </div>
               <div className="t-detail-item">
                 <span className="t-label">Dataset</span>
-                <span className="t-value">NSL-KDD</span>
+                <span className="t-value" style={{ color: '#aaa' }}>NSL-KDD</span>
               </div>
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function UIverseStatCard({ label, value, suffix = '', subLabel, c
           </div>
           <div className="t-admit">
             <div className="t-admit-text">{subLabel || 'Score'}</div>
-            <div className="t-admit-num" style={{ color, textShadow: `0 0 15px ${color}80` }}>
+            <div className="t-admit-num" style={{ color, textShadow: `0 0 12px ${color}60` }}>
               {suffix ? value : '✓'}
             </div>
           </div>
