@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getModelInfo } from '../lib/api'
+import { SkeletonCard, SkeletonBox } from '../components/Skeleton'
+import { CATEGORY_COLORS } from '../lib/colors'
 
 const mockModel = {
   algorithm: 'XGBoost',
@@ -42,14 +44,40 @@ const HEAT_COLORS = (val, max) => {
 }
 
 export default function ModelInfo() {
-  const [info, setInfo] = useState(mockModel)
+  const [info, setInfo]       = useState(null)
+  const [loading, setLoading] = useState(true)
   useEffect(() => { document.title = 'NIDS · Model Info' }, [])
 
   useEffect(() => {
-    getModelInfo().then(r => setInfo(r.data)).catch(() => {})
+    getModelInfo()
+      .then(r => { setInfo(r.data); setLoading(false) })
+      .catch(() => { setInfo(mockModel); setLoading(false) })
   }, [])
 
-  const matMax = Math.max(...info.confusion_matrix.matrix.flat())
+  const matMax = info ? Math.max(...info.confusion_matrix.matrix.flat()) : 1
+
+  if (loading) {
+    return (
+      <div>
+        <div style={{ marginBottom: 24 }}>
+          <SkeletonBox width={180} height={22} radius={5} style={{ marginBottom: 8 }} />
+          <SkeletonBox width={280} height={13} radius={4} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 16 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 8, padding: 16 }}>
+              <SkeletonBox width={60} height={11} style={{ marginBottom: 8 }} />
+              <SkeletonBox width={80} height={18} radius={4} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <SkeletonCard height={260} />
+          <SkeletonCard height={260} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}

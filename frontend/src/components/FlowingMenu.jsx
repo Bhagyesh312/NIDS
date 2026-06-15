@@ -7,13 +7,14 @@ import {
 } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
+import { UNREAD_ALERTS } from '../lib/alertsStore'
 
 // All colors from the single source of truth
 const links = [
   { to: '/info',     label: 'Info',        icon: BookOpen,        color: '#3b82f6'               },
   { to: '/',         label: 'Dashboard',   icon: LayoutDashboard, color: CATEGORY_COLORS.Normal  },
   { to: '/globe',    label: 'Globe',       icon: Globe,           color: CATEGORY_COLORS.Probe   },
-  { to: '/alerts',   label: 'Alerts',      icon: Bell,            color: CATEGORY_COLORS.DoS, badge: 3 },
+  { to: '/alerts',   label: 'Alerts',      icon: Bell,            color: CATEGORY_COLORS.DoS, badge: UNREAD_ALERTS },
   { to: '/predict',  label: 'Predict',     icon: Crosshair,       color: CATEGORY_COLORS.U2R     },
   { to: '/batch',    label: 'Upload CSV',  icon: Upload,          color: CATEGORY_COLORS.R2L     },
   { to: '/reports',  label: 'Reports',     icon: FileText,        color: '#3b82f6'               },
