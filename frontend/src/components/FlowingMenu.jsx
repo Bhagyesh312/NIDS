@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck, LayoutDashboard, Bell, Upload,
-  FileText, Settings, BookOpen, Globe, Menu, X
+  FileText, Settings, BookOpen, Globe, Menu, X, Crosshair
 } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
@@ -14,8 +14,9 @@ const links = [
   { to: '/',         label: 'Dashboard',   icon: LayoutDashboard, color: CATEGORY_COLORS.Normal  },
   { to: '/globe',    label: 'Globe',       icon: Globe,           color: CATEGORY_COLORS.Probe   },
   { to: '/alerts',   label: 'Alerts',      icon: Bell,            color: CATEGORY_COLORS.DoS, badge: 3 },
+  { to: '/predict',  label: 'Predict',     icon: Crosshair,       color: CATEGORY_COLORS.U2R     },
   { to: '/batch',    label: 'Upload CSV',  icon: Upload,          color: CATEGORY_COLORS.R2L     },
-  { to: '/reports',  label: 'Reports',     icon: FileText,        color: CATEGORY_COLORS.U2R     },
+  { to: '/reports',  label: 'Reports',     icon: FileText,        color: '#3b82f6'               },
   { to: '/settings', label: 'Settings',    icon: Settings,        color: '#666'                  },
 ]
 
@@ -119,7 +120,7 @@ export default function FlowingMenu() {
             {links.map(({ to, label, icon: Icon, color, badge }) => {
               const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
               return (
-                <NavLink key={to} to={to} end={to === '/' || to === '/info' || to === '/globe'}
+                <NavLink key={to} to={to} end={to === '/' || to === '/info' || to === '/globe' || to === '/predict'}
                   style={{ textDecoration: 'none' }}>
                   <motion.div
                     whileHover={{ x: 2 }}
@@ -244,7 +245,7 @@ export default function FlowingMenu() {
                     <motion.div key={to} variants={itemVariants}>
                       <NavLink
                         to={to}
-                        end={to === '/' || to === '/info' || to === '/globe'}
+                        end={to === '/' || to === '/info' || to === '/globe' || to === '/predict'}
                         style={{ textDecoration: 'none' }}
                         onMouseEnter={() => setHovered(to)}
                         onMouseLeave={() => setHovered(null)}
