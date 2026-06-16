@@ -177,7 +177,6 @@ npm run dev
 # Run in order:
 python -m jupyter lab notebooks/01_eda_nslkdd.ipynb
 python -m jupyter lab notebooks/02_preprocessing.ipynb
-# Then your teammate runs 03_model_training.ipynb (coming soon)
 ```
 
 ---
