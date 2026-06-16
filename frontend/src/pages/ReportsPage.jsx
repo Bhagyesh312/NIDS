@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -9,6 +9,7 @@ import Header from '../components/Header'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS, CATEGORIES, categoryColors } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
+import { getReports } from '../lib/api'
 
 // ── Mock data ────────────────────────────────────────────────────────────────
 
@@ -29,22 +30,6 @@ const monthly = [
   { month: 'Apr', attacks: 310, normal: 17200 },
   { month: 'May', attacks: 280, normal: 16100 },
   { month: 'Jun', attacks: 347, normal: 12480 },
-]
-
-const categoryStats = [
-  { name: 'DoS',   total: 347, prev: 338, pct: 53.4 },
-  { name: 'Probe', total: 121, prev: 98,  pct: 18.6 },
-  { name: 'R2L',   total: 40,  prev: 44,  pct: 6.2  },
-  { name: 'U2R',   total: 11,  prev: 9,   pct: 1.7  },
-  { name: 'Normal',total: 12133,prev: 11800, pct: 20.1},
-]
-
-const topIPs = [
-  { ip: '192.168.1.104', count: 84,  type: 'DoS'   },
-  { ip: '172.16.0.55',   count: 56,  type: 'Probe'  },
-  { ip: '10.10.1.88',    count: 48,  type: 'DoS'   },
-  { ip: '203.0.113.42',  count: 31,  type: 'R2L'   },
-  { ip: '198.51.100.23', count: 29,  type: 'DoS'   },
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,6 +98,45 @@ function Trend({ current, prev }) {
 export default function ReportsPage() {
   const ready = useReady()
   useEffect(() => { document.title = 'NIDS · Reports' }, [])
+
+  // State — starts with mock data, upgrades to real API data if backend is running
+  const [categoryStats, setCategoryStats] = useState([
+    { name: 'DoS',    total: 347,   prev: 338,   pct: 53.4 },
+    { name: 'Probe',  total: 121,   prev: 98,    pct: 18.6 },
+    { name: 'R2L',    total: 40,    prev: 44,    pct: 6.2  },
+    { name: 'U2R',    total: 11,    prev: 9,     pct: 1.7  },
+    { name: 'Normal', total: 12133, prev: 11800, pct: 20.1 },
+  ])
+  const [topIPs, setTopIPs] = useState([
+    { ip: '192.168.1.104', count: 84, type: 'DoS'   },
+    { ip: '172.16.0.55',   count: 56, type: 'Probe'  },
+    { ip: '10.10.1.88',    count: 48, type: 'DoS'   },
+    { ip: '203.0.113.42',  count: 31, type: 'R2L'   },
+    { ip: '198.51.100.23', count: 29, type: 'DoS'   },
+  ])
+
+  useEffect(() => {
+    getReports()
+      .then(res => {
+        const d = res.data
+        if (d.category_stats?.length) {
+          const total = d.category_stats.reduce((s, c) => s + c.total, 0)
+          setCategoryStats(d.category_stats.map(c => ({
+            ...c,
+            prev: Math.round(c.total * 0.95),
+            pct:  total > 0 ? parseFloat(((c.total / total) * 100).toFixed(1)) : 0,
+          })))
+        }
+        if (d.top_ips?.length) {
+          setTopIPs(d.top_ips.map(ip => ({
+            ip:    ip.ip,
+            count: ip.count,
+            type:  ip.type,
+          })))
+        }
+      })
+      .catch(() => {}) // keep mock data if backend offline
+  }, [])
 
   const totalAttacks = categoryStats.filter(c => c.name !== 'Normal').reduce((s, c) => s + c.total, 0)
 

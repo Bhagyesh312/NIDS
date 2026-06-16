@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sun, Moon, Bell, Shield, Database,
-  Monitor, ChevronRight, Check, RefreshCw
+  Monitor, Check, RefreshCw
 } from 'lucide-react'
 import Header from '../components/Header'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
+import { useTheme } from '../lib/themeContext.jsx'
 
 const fadeUp = (delay = 0, ready = true) => ({
   initial: { opacity: 0, y: 14 },
@@ -128,19 +129,18 @@ function SavedToast({ show }) {
 
 // ── Main component ────────────────────────────────────────────
 export default function SettingsPage() {
-  const ready = useReady()
+  const ready              = useReady()
+  const { theme, setTheme } = useTheme()
   useEffect(() => { document.title = 'NIDS · Settings' }, [])
 
-  // State
-  const [theme,        setTheme]        = useState('dark')
-  const [notifications, setNotif]       = useState(true)
-  const [alertSound,   setAlertSound]   = useState(false)
-  const [autoRefresh,  setAutoRefresh]  = useState(true)
-  const [refreshRate,  setRefreshRate]  = useState('30')
-  const [feedVisible,  setFeedVisible]  = useState(true)
-  const [highOnly,     setHighOnly]     = useState(false)
-  const [apiEndpoint,  setApiEndpoint]  = useState('http://localhost:8000')
-  const [saved, setSaved]               = useState(false)
+  const [notifications, setNotif]      = useState(true)
+  const [alertSound,   setAlertSound]  = useState(false)
+  const [autoRefresh,  setAutoRefresh] = useState(true)
+  const [refreshRate,  setRefreshRate] = useState('30')
+  const [feedVisible,  setFeedVisible] = useState(true)
+  const [highOnly,     setHighOnly]    = useState(false)
+  const [apiEndpoint,  setApiEndpoint] = useState('http://localhost:8000')
+  const [saved, setSaved]              = useState(false)
 
   const handleSave = () => {
     setSaved(true)
@@ -155,7 +155,6 @@ export default function SettingsPage() {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
-
   return (
     <div style={{ maxWidth: 720 }}>
       <Header title="Settings" subtitle="Customize your dashboard preferences" />

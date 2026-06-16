@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getModelInfo } from '../lib/api'
-import { SkeletonCard, SkeletonBox } from '../components/Skeleton'
+import SkeletonBox, { SkeletonCard } from '../components/Skeleton'
 import { CATEGORY_COLORS } from '../lib/colors'
 
 const mockModel = {

@@ -1,13 +1,14 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Download, Filter, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react'
 import Header from '../components/Header'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS, CATEGORIES } from '../lib/colors'
 import { SkeletonTableRow } from '../components/Skeleton'
+import { getAlerts } from '../lib/api'
 
-// ── Mock data ────────────────────────────────────────────────────────────────
-const RAW_ALERTS = [
+// ── Mock fallback data (used when backend is offline) ─────────────────────────
+const MOCK_ALERTS = [
   { id: 1,  type: 'DoS',    src: '192.168.1.104', dst: '10.0.0.1',   port: 80,   proto: 'tcp', conf: 98.2, time: '2025-06-13 14:02:11', subtype: 'neptune' },
   { id: 2,  type: 'Probe',  src: '172.16.0.55',   dst: '10.0.0.5',   port: 22,   proto: 'tcp', conf: 94.7, time: '2025-06-13 13:58:44', subtype: 'portsweep' },
   { id: 3,  type: 'R2L',    src: '203.0.113.42',  dst: '10.0.0.12',  port: 21,   proto: 'tcp', conf: 89.1, time: '2025-06-13 13:51:30', subtype: 'ftp_write' },
@@ -30,6 +31,21 @@ const RAW_ALERTS = [
   { id: 20, type: 'U2R',    src: '10.0.0.77',     dst: '10.0.0.4',   port: 0,    proto: 'tcp', conf: 86.5, time: '2025-06-13 10:52:18', subtype: 'sqlattack' },
 ]
 
+// Normalize backend response to match the table format
+function normalizeAlert(a) {
+  return {
+    id:      a.id,
+    type:    a.prediction,
+    src:     a.src_ip   || '—',
+    dst:     a.dst_ip   || '—',
+    port:    0,
+    proto:   a.protocol || '—',
+    conf:    parseFloat((a.confidence * 100).toFixed(1)),
+    time:    new Date(a.created_at).toLocaleString(),
+    subtype: a.subtype  || a.prediction?.toLowerCase() || '—',
+  }
+}
+
 const TYPE_FILTERS = ['All', ...CATEGORIES.filter(c => c !== 'Normal')]
 const SORT_FIELDS  = ['time', 'conf', 'type', 'src']
 const PAGE_SIZE    = 10
@@ -42,21 +58,34 @@ function SortIcon({ field, sortBy, sortDir }) {
 }
 
 export default function AlertsPage() {
-  const [search, setSearch]     = useState('')
-  const [typeFilter, setFilter] = useState('All')
-  const [sortBy, setSortBy]     = useState('time')
-  const [sortDir, setSortDir]   = useState('desc')
-  const [page, setPage]         = useState(1)
-  const [loading, setLoading]   = useState(true)
+  const [rawAlerts, setRawAlerts] = useState(MOCK_ALERTS)
+  const [search, setSearch]       = useState('')
+  const [typeFilter, setFilter]   = useState('All')
+  const [sortBy, setSortBy]       = useState('time')
+  const [sortDir, setSortDir]     = useState('desc')
+  const [page, setPage]           = useState(1)
+  const [loading, setLoading]     = useState(true)
 
-  // Simulate loading
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 900)
-    return () => clearTimeout(t)
+  useEffect(() => { document.title = 'NIDS · Alerts' }, [])
+
+  const fetchAlerts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await getAlerts({ limit: 100 })
+      if (res.data?.length) {
+        setRawAlerts(res.data.map(normalizeAlert))
+      }
+      // If backend returns empty keep mock data
+    } catch {
+      // Backend offline — keep mock data silently
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // Update page title
-  useEffect(() => { document.title = 'NIDS · Alerts' }, [])
+  useEffect(() => { fetchAlerts() }, [fetchAlerts])
+
+  const handleRefresh = () => fetchAlerts()
 
   const handleSort = (field) => {
     if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -65,7 +94,7 @@ export default function AlertsPage() {
   }
 
   const filtered = useMemo(() => {
-    let data = RAW_ALERTS
+    let data = rawAlerts
     if (typeFilter !== 'All') data = data.filter(a => a.type === typeFilter)
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -96,11 +125,6 @@ export default function AlertsPage() {
     el.href = URL.createObjectURL(blob)
     el.download = 'nids_alerts.csv'
     el.click()
-  }
-
-  const handleRefresh = () => {
-    setLoading(true)
-    setTimeout(() => setLoading(false), 700)
   }
 
   const col = (label, field) => (

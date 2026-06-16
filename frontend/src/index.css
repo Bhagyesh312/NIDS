@@ -3,18 +3,45 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* ── Dark theme (default) ── */
+:root, [data-theme="dark"] {
+  --bg:        #0d0d0d;
+  --surface:   #161616;
+  --surface2:  #111111;
+  --border:    #1f1f1f;
+  --border2:   #2a2a2a;
+  --text:      #e2e2e2;
+  --text2:     #ccc;
+  --muted:     #555;
+  --muted2:    #333;
+}
+
+/* ── Light theme ── */
+[data-theme="light"] {
+  --bg:        #f5f5f5;
+  --surface:   #ffffff;
+  --surface2:  #f0f0f0;
+  --border:    #e0e0e0;
+  --border2:   #d0d0d0;
+  --text:      #111111;
+  --text2:     #333333;
+  --muted:     #888888;
+  --muted2:    #aaaaaa;
+}
+
 body {
   margin: 0;
-  background: #0d0d0d;
-  color: #e2e2e2;
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Inter', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 a { text-decoration: none; color: inherit; }
 
 ::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: #0d0d0d; }
-::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }

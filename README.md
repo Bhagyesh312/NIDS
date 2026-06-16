@@ -12,7 +12,7 @@ A machine learning powered security dashboard that detects and classifies networ
 | **R2L** | 🟡 `#f59e0b` | Remote to Local attacks (guess_passwd, ftp_write…) |
 | **U2R** | 🟣 `#a78bfa` | User to Root attacks (buffer_overflow, rootkit…) |
 
-> All 5 colors are defined once in `frontend/src/lib/colors.js` and imported everywhere — no hardcoded values in components.
+> All 5 colors are defined once in `frontend/src/lib/colors.js` — imported everywhere, never hardcoded.
 
 ---
 
@@ -21,11 +21,11 @@ A machine learning powered security dashboard that detects and classifies networ
 ```
 NIDS/
 ├── data/
-│   ├── raw/                        # Original datasets (not pushed to GitHub)
+│   ├── raw/                          # Datasets (not pushed to GitHub)
 │   │   ├── KDDTrain+.txt
 │   │   ├── KDDTest+.txt
-│   │   └── CICIDS2017/             # 8 CSV files (one per day)
-│   └── processed/                  # Generated after running preprocessing notebook
+│   │   └── CICIDS2017/
+│   └── processed/                    # Generated after preprocessing notebook
 │       ├── X_train.npy / y_train.npy
 │       ├── X_val.npy   / y_val.npy
 │       ├── X_test.npy  / y_test.npy
@@ -34,22 +34,35 @@ NIDS/
 │       ├── target_encoder.pkl
 │       └── feature_names.pkl
 ├── notebooks/
-│   ├── 01_eda_nslkdd.ipynb         # Exploratory Data Analysis
-│   └── 02_preprocessing.ipynb      # Encoding, SMOTE, scaling, save processed data
-├── models/                         # Saved trained models (generated after training)
-├── backend/                        # FastAPI prediction API (in progress)
-├── frontend/                       # React + Vite dashboard
+│   ├── 01_eda_nslkdd.ipynb           # Exploratory Data Analysis
+│   └── 02_preprocessing.ipynb        # Encoding, SMOTE, scaling
+├── models/                           # Saved trained models (after training)
+├── backend/                          # FastAPI + PostgreSQL API
+│   ├── main.py                       # App entry, CORS, validation errors
+│   ├── database.py                   # PostgreSQL via SQLAlchemy + .env
+│   ├── models.py                     # predictions DB table
+│   ├── schemas.py                    # Pydantic request/response + validation
+│   ├── ml.py                         # Load model, preprocess, predict
+│   ├── routes/
+│   │   ├── predict.py                # POST /predict, POST /predict/batch
+│   │   ├── alerts.py                 # GET /alerts, /alerts/count
+│   │   ├── stats.py                  # GET /stats, /model-info, /globe-stats
+│   │   └── reports.py                # GET /reports/summary
+│   ├── .env.example                  # Template for environment variables
+│   └── README.md
+├── frontend/                         # React 19 + Vite dashboard
 │   ├── src/
-│   │   ├── components/             # UI components (see below)
-│   │   ├── pages/                  # Dashboard, Alerts, Predict, Batch, Globe, Info, ModelInfo
-│   │   ├── lib/                    # api.js, colors.js, readyContext.js
-│   │   └── hooks/                  # useCountUp.js
+│   │   ├── components/               # UI components
+│   │   ├── pages/                    # All 9 pages
+│   │   ├── lib/                      # api.js, colors.js, readyContext.js,
+│   │   │                             # alertsStore.js, themeContext.jsx
+│   │   └── hooks/                    # useCountUp.js
 │   ├── package.json
-│   └── package-lock.json           # Locked dependency versions for reproducible installs
-├── venv/                           # Virtual environment (not pushed to GitHub)
-├── load_kdd.py                     # Load and label KDD dataset
-├── load_cicids.py                  # Combine and clean CICIDS2017 dataset
-├── requirements.txt                # Python dependencies
+│   └── package-lock.json
+├── venv/                             # Virtual environment (not in GitHub)
+├── load_kdd.py
+├── load_cicids.py
+├── requirements.txt
 └── .gitignore
 ```
 
@@ -59,37 +72,57 @@ NIDS/
 
 | Page | Route | Description |
 |---|---|---|
-| Dashboard | `/` | Live stat cards, traffic chart, donut, recent alerts |
-| Alerts | `/alerts` | Full sortable/filterable alert table with CSV export |
-| Predict | `/predict` | Single flow prediction form with confidence display |
-| Batch | `/batch` | Upload CSV for bulk predictions |
-| Globe | `/globe` | Interactive 3D threat origin map |
-| Info | `/info` | Attack type encyclopedia with detection features |
-| Model Info | `/model` | Confusion matrix, feature importance, model details |
+| Dashboard | `/` | Live stat cards, traffic chart, donut, alerts |
+| Alerts | `/alerts` | Sortable/filterable table, real API data, CSV export |
+| Predict | `/predict` | Single flow prediction, sample fill buttons |
+| Batch | `/batch` | CSV upload, category summary, bulk results |
+| Globe | `/globe` | Interactive 3D attack origin map |
+| Info | `/info` | Attack type encyclopedia |
+| Model Info | `/model` | Confusion matrix, feature importance |
+| Reports | `/reports` | Weekly/monthly charts, breakdown, top IPs |
+| Settings | `/settings` | Theme toggle, notifications, API config |
+
+---
+
+## Backend API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Health check + model status |
+| GET | `/health` | DB + model check |
+| POST | `/predict` | Single flow prediction → saved to DB |
+| POST | `/predict/batch` | CSV bulk prediction → saved to DB |
+| GET | `/alerts` | Attack alerts from DB (filterable) |
+| GET | `/alerts/count` | Unread count for sidebar badge |
+| GET | `/stats` | Dashboard statistics |
+| GET | `/model-info` | Model metadata + confusion matrix |
+| GET | `/globe-stats` | Attack origins by source IP |
+| GET | `/reports/summary` | Weekly/category breakdown |
 
 ---
 
 ## Frontend Features & Animations
 
-- **Welcome Modal** — Intro screen on first visit; all dashboard animations are gated and only trigger after clicking "Enter Dashboard"
-- **Flowing Menu** — Hamburger-triggered sidebar overlay with cascading wave animation (blur → clear stagger per link)
-- **Stat Cards** — UIverse.io 3D ticket-style cards with scrolling grid background, 3D hover tilt, and shimmer overlay
-- **Count-up Numbers** — All stat values animate from 0 using `requestAnimationFrame` + `easeOutExpo`
-- **Traffic Chart** — Dual Y-axis area chart with time range filter (6h / 12h / 24h / 7d) and animated chart switch
-- **Donut Chart** — Animated spin-in with percentage bars that fill on load
-- **Alerts Table** — Sortable, searchable, paginated; rows animate in with stagger; live filter with exit animations
-- **Threat Feed** — Terminal-style sliding panel with live mock event stream, pause/play, attack count flash
-- **Command Palette** — `Ctrl K` spotlight search with blur backdrop, keyboard navigation, attack type info
-- **Globe** — Interactive 3D globe (globe.gl + three.js) with pulsing attack rings, animated arcs, glassmorphism popup
-- **Error Boundary** — Catches any render crash with a recovery UI
-- **Skeleton Loaders** — Shimmer placeholders shown during simulated data fetching
-- **Page Titles** — Each page updates `document.title` dynamically
+- **Welcome Modal** — Intro screen; all animations gate until "Enter Dashboard" clicked
+- **Flowing Menu** — Hamburger overlay with cascading wave animation
+- **Stat Cards** — UIverse.io 3D ticket-style cards with scrolling grid, 3D tilt
+- **Count-up Numbers** — `requestAnimationFrame` + `easeOutExpo`
+- **Traffic Chart** — Dual Y-axis area chart with time range filter (6h/12h/24h/7d)
+- **Donut Chart** — Animated spin-in with percentage bars
+- **Alerts Table** — Real API data, sortable, searchable, paginated, CSV export
+- **Reports Charts** — Bar chart with dark cursor + glow hover, line chart
+- **Globe** — 3D interactive globe with pulsing rings, arcs, glassmorphism popup
+- **Threat Feed** — Terminal-style live event stream (slide-in panel)
+- **Command Palette** — `Ctrl K` spotlight search
+- **Dark/Light Mode** — Settings toggle, CSS variables, saved to localStorage
+- **Error Boundary** — Graceful crash recovery on all pages
+- **Skeleton Loaders** — Shimmer placeholders during data fetching
 
 ---
 
 ## UIverse.io Credits
 
-UI components sourced and adapted from [UIverse.io](https://uiverse.io) — colors and styles adjusted to match the NIDS dark theme:
+UI components sourced from [UIverse.io](https://uiverse.io) — adapted to NIDS dark theme:
 
 | Component | Author | Used In |
 |---|---|---|
@@ -101,42 +134,51 @@ UI components sourced and adapted from [UIverse.io](https://uiverse.io) — colo
 
 ## Setup Instructions
 
-### Backend (Python)
+### Backend (Python + PostgreSQL)
 
 ```bash
 # 1. Clone the repo
 git clone https://github.com/Bhagyesh312/NIDS.git
 cd NIDS
 
-# 2. Create and activate virtual environment
+# 2. Create virtual environment
 python -m venv venv
 venv\Scripts\activate        # Windows
 source venv/bin/activate     # Mac/Linux
 
 # 3. Install dependencies
 pip install -r requirements.txt
+pip install fastapi uvicorn sqlalchemy psycopg2-binary python-multipart pandas joblib python-dotenv
 
-# 4. Add datasets to data/raw/
-#    KDDTrain+.txt, KDDTest+.txt, CICIDS2017/*.csv
+# 4. Create PostgreSQL database named NIDS in pgAdmin4
 
-# 5. Run EDA notebook
-python -m jupyter lab notebooks/01_eda_nslkdd.ipynb
+# 5. Configure environment
+cd backend
+cp .env.example .env
+# Edit .env with your PostgreSQL password
 
-# 6. Run preprocessing
-python -m jupyter lab notebooks/02_preprocessing.ipynb
+# 6. Start the backend
+uvicorn main:app --reload
+# API docs at http://localhost:8000/docs
 ```
 
 ### Frontend (React)
 
 ```bash
 cd frontend
-npm install        # installs exact versions from package-lock.json
+npm install        # uses package-lock.json for exact versions
 npm run dev
 # Opens at http://localhost:5173
 ```
 
-> Data files and `node_modules` are excluded via `.gitignore`.  
-> `package-lock.json` is committed so both collaborators get identical dependency trees.
+### ML Notebooks
+
+```bash
+# Run in order:
+python -m jupyter lab notebooks/01_eda_nslkdd.ipynb
+python -m jupyter lab notebooks/02_preprocessing.ipynb
+# Then your teammate runs 03_model_training.ipynb (coming soon)
+```
 
 ---
 
@@ -159,11 +201,11 @@ npm run dev
 | Explainability | SHAP |
 | Experiment Tracking | MLflow |
 | Backend API | FastAPI + uvicorn |
+| Database | PostgreSQL + SQLAlchemy |
 | Frontend | React 19 + Vite |
 | Charts | Recharts |
 | 3D Globe | globe.gl + three.js |
 | Animations | Framer Motion |
-| Smooth Scroll | Lenis |
 | Icons | Lucide React |
 | Styling | Tailwind CSS + custom CSS |
 | UI Components | UIverse.io (adapted) |

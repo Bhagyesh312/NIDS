@@ -14,14 +14,16 @@ build/
 # ── Virtual environment ─────────────────────────────────────────
 venv/
 env/
+
+# ── Environment variables (contain secrets) ─────────────────────
 .env
+# NOTE: .env.example IS committed — it's a safe template with no real values
 
 # ── Model files (generated after training) ──────────────────────
 models/
 
 # ── Jupyter ─────────────────────────────────────────────────────
 .ipynb_checkpoints/
-*.ipynb_meta
 
 # ── Frontend ────────────────────────────────────────────────────
 frontend/node_modules/
@@ -36,6 +38,7 @@ frontend/.env.production
 # ── Backend ─────────────────────────────────────────────────────
 backend/__pycache__/
 backend/.env
+# NOTE: backend/.env.example IS committed — safe template
 
 # ── IDE ─────────────────────────────────────────────────────────
 .vscode/

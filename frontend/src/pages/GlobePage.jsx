@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Header from '../components/Header'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS } from '../lib/colors'
+import { getGlobeStats } from '../lib/api'
 
-// Attack origin data — country, coords, type, details
-const attackPoints = [
+// Mock attack origin data — used when backend is offline
+const MOCK_ATTACK_POINTS = [
   { id: 1,  lat: 39.9,  lng: 116.4, country: 'China',          type: 'DoS',   count: 1842, ip: '114.80.x.x',   desc: 'neptune flood targeting port 80' },
   { id: 2,  lat: 55.7,  lng: 37.6,  country: 'Russia',         type: 'Probe', count: 934,  ip: '77.88.x.x',    desc: 'portsweep across /24 subnet' },
   { id: 3,  lat: 37.5,  lng: 127.0, country: 'South Korea',    type: 'DoS',   count: 621,  ip: '121.53.x.x',   desc: 'smurf ICMP amplification' },
@@ -23,20 +24,30 @@ const attackPoints = [
   { id: 15, lat: 30.0,  lng: 31.2,  country: 'Egypt',          type: 'R2L',   count: 56,   ip: '41.32.x.x',    desc: 'ftp_write exploit' },
 ]
 
-// Arc connections — attacking → target (always 10.0.0.x)
-const arcs = attackPoints.slice(0, 8).map(p => ({
-  startLat: p.lat, startLng: p.lng,
-  endLat: 37.8, endLng: -97.0,   // US central (target)
-  color: CATEGORY_COLORS[p.type],
-}))
-
 export default function GlobePage() {
   const globeEl   = useRef(null)
   const globeRef  = useRef(null)
-  const [selected, setSelected] = useState(null)
-  const [loaded, setLoaded]     = useState(false)
+  const [selected, setSelected]         = useState(null)
+  const [loaded, setLoaded]             = useState(false)
+  const [attackPoints, setAttackPoints] = useState(MOCK_ATTACK_POINTS)
+
+  // Arcs derived from current attack points state
+  const arcs = attackPoints.slice(0, 8).map(p => ({
+    startLat: p.lat, startLng: p.lng,
+    endLat: 37.8, endLng: -97.0,
+    color: CATEGORY_COLORS[p.type] || '#888',
+  }))
 
   useEffect(() => { document.title = 'NIDS · Globe' }, [])
+
+  // Try to fetch real data from backend; fall back to mock silently
+  useEffect(() => {
+    getGlobeStats()
+      .then(res => {
+        if (res.data?.length) setAttackPoints(res.data)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     let Globe

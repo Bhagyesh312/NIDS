@@ -7,19 +7,7 @@ import {
 } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
-import { UNREAD_ALERTS } from '../lib/alertsStore'
-
-// All colors from the single source of truth
-const links = [
-  { to: '/info',     label: 'Info',        icon: BookOpen,        color: '#3b82f6'               },
-  { to: '/',         label: 'Dashboard',   icon: LayoutDashboard, color: CATEGORY_COLORS.Normal  },
-  { to: '/globe',    label: 'Globe',       icon: Globe,           color: CATEGORY_COLORS.Probe   },
-  { to: '/alerts',   label: 'Alerts',      icon: Bell,            color: CATEGORY_COLORS.DoS, badge: UNREAD_ALERTS },
-  { to: '/predict',  label: 'Predict',     icon: Crosshair,       color: CATEGORY_COLORS.U2R     },
-  { to: '/batch',    label: 'Upload CSV',  icon: Upload,          color: CATEGORY_COLORS.R2L     },
-  { to: '/reports',  label: 'Reports',     icon: FileText,        color: '#3b82f6'               },
-  { to: '/settings', label: 'Settings',    icon: Settings,        color: '#666'                  },
-]
+import { useAlertCount } from '../lib/alertsStore'
 
 // Stagger variants for cascade wave
 const containerVariants = {
@@ -51,8 +39,20 @@ const panelVariants = {
 export default function FlowingMenu() {
   const [open, setOpen]         = useState(false)
   const [hovered, setHovered]   = useState(null)
-  const ready = useReady()
-  const location = useLocation()
+  const ready      = useReady()
+  const location   = useLocation()
+  const alertCount = useAlertCount()
+
+  const links = [
+    { to: '/info',     label: 'Info',        icon: BookOpen,        color: '#3b82f6'               },
+    { to: '/',         label: 'Dashboard',   icon: LayoutDashboard, color: CATEGORY_COLORS.Normal  },
+    { to: '/globe',    label: 'Globe',       icon: Globe,           color: CATEGORY_COLORS.Probe   },
+    { to: '/alerts',   label: 'Alerts',      icon: Bell,            color: CATEGORY_COLORS.DoS, badge: alertCount },
+    { to: '/predict',  label: 'Predict',     icon: Crosshair,       color: CATEGORY_COLORS.U2R     },
+    { to: '/batch',    label: 'Upload CSV',  icon: Upload,          color: CATEGORY_COLORS.R2L     },
+    { to: '/reports',  label: 'Reports',     icon: FileText,        color: '#3b82f6'               },
+    { to: '/settings', label: 'Settings',    icon: Settings,        color: '#666'                  },
+  ]
 
   // Close on route change
   useEffect(() => { setOpen(false) }, [location.pathname])
