@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Download, Filter, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react'
+import { Search, Download, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react'
 import Header from '../components/Header'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS, CATEGORIES } from '../lib/colors'
 import { SkeletonTableRow } from '../components/Skeleton'
 import { getAlerts } from '../lib/api'
+import { useMockMode } from '../lib/mockModeContext'
 
 // ── Mock fallback data (used when backend is offline) ─────────────────────────
 const MOCK_ALERTS = [
@@ -58,6 +59,7 @@ function SortIcon({ field, sortBy, sortDir }) {
 }
 
 export default function AlertsPage() {
+  const { mockMode } = useMockMode()
   const [rawAlerts, setRawAlerts] = useState(MOCK_ALERTS)
   const [search, setSearch]       = useState('')
   const [typeFilter, setFilter]   = useState('All')
@@ -69,21 +71,32 @@ export default function AlertsPage() {
   useEffect(() => { document.title = 'NIDS · Alerts' }, [])
 
   const fetchAlerts = useCallback(async () => {
+    if (mockMode) {
+      setRawAlerts(MOCK_ALERTS)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const res = await getAlerts({ limit: 100 })
-      if (res.data?.length) {
-        setRawAlerts(res.data.map(normalizeAlert))
-      }
-      // If backend returns empty keep mock data
+      if (res.data?.length) setRawAlerts(res.data.map(normalizeAlert))
+      else setRawAlerts(MOCK_ALERTS)
     } catch {
-      // Backend offline — keep mock data silently
+      setRawAlerts(MOCK_ALERTS)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [mockMode])
 
+  // Fetch on mount and when mock mode changes
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
+
+  // Auto-refresh every 30s when in API mode
+  useEffect(() => {
+    if (mockMode) return
+    const interval = setInterval(fetchAlerts, 30000)
+    return () => clearInterval(interval)
+  }, [mockMode, fetchAlerts])
 
   const handleRefresh = () => fetchAlerts()
 

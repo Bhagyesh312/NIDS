@@ -115,6 +115,7 @@ NIDS/
 - **Threat Feed** — Terminal-style live event stream (slide-in panel)
 - **Command Palette** — `Ctrl K` spotlight search
 - **Dark/Light Mode** — Settings toggle, CSS variables, saved to localStorage
+- **Mock Mode Banner** — Amber warning banner when backend is offline; 3D flip toggle (Demo↔API) switches between mock data and live API; Live dot turns amber in demo mode
 - **Error Boundary** — Graceful crash recovery on all pages
 - **Skeleton Loaders** — Shimmer placeholders during data fetching
 
@@ -129,7 +130,7 @@ UI components sourced from [UIverse.io](https://uiverse.io) — adapted to NIDS 
 | 3D Ticket Stat Card | [zeeshan_2112](https://uiverse.io/zeeshan_2112) | Dashboard stat cards |
 | Gradient Push Button | [hakemdamer222](https://uiverse.io/hakemdamer222) | Predict page submit button |
 | Sliding Invert Loader | [Uncannypotato69](https://uiverse.io/Uncannypotato69) | Predict page loading state |
-
+| 3D Flip Toggle Switch | UIverse community | Demo/API mode toggle in header |
 ---
 
 ## Setup Instructions

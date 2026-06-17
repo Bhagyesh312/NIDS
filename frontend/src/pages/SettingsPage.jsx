@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sun, Moon, Bell, Shield, Database,
-  Monitor, Check, RefreshCw
+  Monitor, Check, RefreshCw, Wifi, WifiOff
 } from 'lucide-react'
 import Header from '../components/Header'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
 import { useTheme } from '../lib/themeContext.jsx'
+import { checkHealth } from '../lib/api'
 
 const fadeUp = (delay = 0, ready = true) => ({
   initial: { opacity: 0, y: 14 },
@@ -129,7 +130,7 @@ function SavedToast({ show }) {
 
 // ── Main component ────────────────────────────────────────────
 export default function SettingsPage() {
-  const ready              = useReady()
+  const ready               = useReady()
   const { theme, setTheme } = useTheme()
   useEffect(() => { document.title = 'NIDS · Settings' }, [])
 
@@ -139,21 +140,44 @@ export default function SettingsPage() {
   const [refreshRate,  setRefreshRate] = useState('30')
   const [feedVisible,  setFeedVisible] = useState(true)
   const [highOnly,     setHighOnly]    = useState(false)
-  const [apiEndpoint,  setApiEndpoint] = useState('http://localhost:8000')
-  const [saved, setSaved]              = useState(false)
+  const [apiEndpoint,  setApiEndpoint] = useState(
+    () => localStorage.getItem('nids-api-endpoint') || 'http://localhost:8000'
+  )
+  const [saved,        setSaved]       = useState(false)
+  const [connStatus,   setConnStatus]  = useState('checking') // 'checking' | 'connected' | 'disconnected'
+
+  // Check backend connection on mount and after saving
+  const checkConnection = useCallback(async () => {
+    setConnStatus('checking')
+    try {
+      await checkHealth()
+      setConnStatus('connected')
+    } catch {
+      setConnStatus('disconnected')
+    }
+  }, [])
+
+  useEffect(() => { checkConnection() }, [checkConnection])
 
   const handleSave = () => {
+    // Persist all saveable settings
+    localStorage.setItem('nids-api-endpoint', apiEndpoint)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+    checkConnection() // re-check with new endpoint
   }
 
   const handleReset = () => {
-    setTheme('dark'); setNotif(true); setAlertSound(false)
+    const defaultEndpoint = 'http://localhost:8000'
+    setTheme('dark')
+    setNotif(true); setAlertSound(false)
     setAutoRefresh(true); setRefreshRate('30')
     setFeedVisible(true); setHighOnly(false)
-    setApiEndpoint('http://localhost:8000')
+    setApiEndpoint(defaultEndpoint)
+    localStorage.setItem('nids-api-endpoint', defaultEndpoint)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+    checkConnection()
   }
   return (
     <div style={{ maxWidth: 720 }}>
@@ -244,12 +268,30 @@ export default function SettingsPage() {
 
           <SettingRow label="Connection status" desc="Current backend connection state">
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <motion.div
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }}
-              />
-              <span style={{ fontSize: 12, color: '#ef4444' }}>Disconnected</span>
+              {connStatus === 'checking' && (
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #2a2a2a', borderTop: '2px solid #3b82f6' }} />
+              )}
+              {connStatus === 'connected' && (
+                <>
+                  <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }}
+                    style={{ width: 7, height: 7, borderRadius: '50%', background: CATEGORY_COLORS.Normal }} />
+                  <Wifi size={13} color={CATEGORY_COLORS.Normal} />
+                  <span style={{ fontSize: 12, color: CATEGORY_COLORS.Normal }}>Connected</span>
+                </>
+              )}
+              {connStatus === 'disconnected' && (
+                <>
+                  <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }}
+                    style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }} />
+                  <WifiOff size={13} color="#ef4444" />
+                  <span style={{ fontSize: 12, color: '#ef4444' }}>Disconnected</span>
+                </>
+              )}
+              <motion.button whileTap={{ scale: 0.95 }} onClick={checkConnection}
+                style={{ background: 'none', border: '1px solid #2a2a2a', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', color: '#555', fontSize: 11, marginLeft: 4 }}>
+                Retry
+              </motion.button>
             </div>
           </SettingRow>
         </Section>

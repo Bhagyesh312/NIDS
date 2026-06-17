@@ -10,6 +10,7 @@ import Badge from '../components/Badge'
 import { CATEGORY_COLORS, CATEGORIES, categoryColors } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
 import { getReports } from '../lib/api'
+import { useMockMode } from '../lib/mockModeContext'
 
 // ── Mock data ────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ function Trend({ current, prev }) {
 
 export default function ReportsPage() {
   const ready = useReady()
+  const { mockMode } = useMockMode()
   useEffect(() => { document.title = 'NIDS · Reports' }, [])
 
   // State — starts with mock data, upgrades to real API data if backend is running
@@ -116,6 +118,7 @@ export default function ReportsPage() {
   ])
 
   useEffect(() => {
+    if (mockMode) return   // stay on mock data when in demo mode
     getReports()
       .then(res => {
         const d = res.data

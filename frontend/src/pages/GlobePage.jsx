@@ -4,6 +4,7 @@ import Header from '../components/Header'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { getGlobeStats } from '../lib/api'
+import { useMockMode } from '../lib/mockModeContext'
 
 // Mock attack origin data — used when backend is offline
 const MOCK_ATTACK_POINTS = [
@@ -27,6 +28,7 @@ const MOCK_ATTACK_POINTS = [
 export default function GlobePage() {
   const globeEl   = useRef(null)
   const globeRef  = useRef(null)
+  const { mockMode }                    = useMockMode()
   const [selected, setSelected]         = useState(null)
   const [loaded, setLoaded]             = useState(false)
   const [attackPoints, setAttackPoints] = useState(MOCK_ATTACK_POINTS)
@@ -40,14 +42,19 @@ export default function GlobePage() {
 
   useEffect(() => { document.title = 'NIDS · Globe' }, [])
 
-  // Try to fetch real data from backend; fall back to mock silently
+  // Fetch real data when in API mode, reset to mock when in Demo mode
   useEffect(() => {
+    if (mockMode) {
+      setAttackPoints(MOCK_ATTACK_POINTS)
+      return
+    }
     getGlobeStats()
       .then(res => {
         if (res.data?.length) setAttackPoints(res.data)
+        else setAttackPoints(MOCK_ATTACK_POINTS)
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => setAttackPoints(MOCK_ATTACK_POINTS))
+  }, [mockMode])
 
   useEffect(() => {
     let Globe
