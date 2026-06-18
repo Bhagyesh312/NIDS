@@ -29,11 +29,9 @@ models/*.png
 # only text metadata (accuracy, confusion matrix, feature importances)
 # and is required by the FastAPI /model-info endpoint at startup.
 
-# ── MLflow experiment tracking database ─────────────────────────
-mlruns/mlflow.db
-mlruns/artifacts/
-# NOTE: mlruns/ directory itself is fine to track; only the .db and
-# artifact blobs are excluded (they can be large and are re-generated).
+# ── MLflow experiment tracking ──────────────────────────────────
+# The entire mlruns/ folder is local-only — regenerated on each training run.
+mlruns/
 
 # ── Jupyter ─────────────────────────────────────────────────────
 .ipynb_checkpoints/
