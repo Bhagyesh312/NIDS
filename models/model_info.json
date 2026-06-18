@@ -1,0 +1,152 @@
+{
+  "algorithm": "XGBoost (XGBClassifier)",
+  "dataset": "NSL-KDD",
+  "samples": 269370,
+  "features": 40,
+  "train_size": "269,370 rows (after SMOTE)",
+  "test_accuracy": 0.8022,
+  "test_f1_weighted": 0.7724,
+  "val_accuracy": 0.9992,
+  "confusion_matrix": {
+    "DoS": {
+      "DoS": 6281,
+      "Normal": 1126,
+      "Probe": 51,
+      "R2L": 0,
+      "U2R": 0
+    },
+    "Normal": {
+      "DoS": 80,
+      "Normal": 9427,
+      "Probe": 200,
+      "R2L": 0,
+      "U2R": 4
+    },
+    "Probe": {
+      "DoS": 164,
+      "Normal": 305,
+      "Probe": 1952,
+      "R2L": 0,
+      "U2R": 0
+    },
+    "R2L": {
+      "DoS": 0,
+      "Normal": 2347,
+      "Probe": 2,
+      "R2L": 398,
+      "U2R": 7
+    },
+    "U2R": {
+      "DoS": 0,
+      "Normal": 156,
+      "Probe": 15,
+      "R2L": 2,
+      "U2R": 27
+    }
+  },
+  "feature_importance": [
+    [
+      "num_file_creations",
+      0.17935170233249664
+    ],
+    [
+      "num_failed_logins",
+      0.1064944788813591
+    ],
+    [
+      "dst_host_serror_rate",
+      0.0922040343284607
+    ],
+    [
+      "count",
+      0.05782681331038475
+    ],
+    [
+      "logged_in",
+      0.04853571951389313
+    ],
+    [
+      "dst_host_srv_count",
+      0.041891396045684814
+    ],
+    [
+      "protocol_type",
+      0.04021647572517395
+    ],
+    [
+      "serror_rate",
+      0.03551143780350685
+    ],
+    [
+      "duration",
+      0.032641418278217316
+    ],
+    [
+      "src_bytes",
+      0.03156626969575882
+    ],
+    [
+      "dst_host_diff_srv_rate",
+      0.0254919845610857
+    ],
+    [
+      "hot",
+      0.02482091449201107
+    ],
+    [
+      "dst_bytes",
+      0.024691704660654068
+    ],
+    [
+      "wrong_fragment",
+      0.024421634152531624
+    ],
+    [
+      "service",
+      0.024014387279748917
+    ],
+    [
+      "srv_rerror_rate",
+      0.020574014633893967
+    ],
+    [
+      "diff_srv_rate",
+      0.020508570596575737
+    ],
+    [
+      "root_shell",
+      0.018805712461471558
+    ],
+    [
+      "is_guest_login",
+      0.0157322995364666
+    ],
+    [
+      "num_compromised",
+      0.015003562904894352
+    ]
+  ],
+  "classes": [
+    "DoS",
+    "Normal",
+    "Probe",
+    "R2L",
+    "U2R"
+  ],
+  "mlflow_run_id": "906238d6d3314f3195e23197ff6c3caa",
+  "hyperparameters": {
+    "n_estimators": 300,
+    "max_depth": 6,
+    "learning_rate": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 5,
+    "gamma": 0.1,
+    "objective": "multi:softprob",
+    "num_class": 5,
+    "eval_metric": "mlogloss",
+    "random_state": 42,
+    "n_jobs": -1,
+    "tree_method": "hist"
+  }
+}

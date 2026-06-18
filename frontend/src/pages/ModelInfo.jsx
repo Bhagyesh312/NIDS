@@ -10,28 +10,31 @@ const mockModel = {
   dataset: 'NSL-KDD',
   samples: 125973,
   features: 41,
-  train_size: '80%',
+  train_size: '80 / 20 split',
+  test_accuracy: null,
+  test_f1_weighted: null,
+  val_accuracy: null,
   confusion_matrix: {
-    labels: ['Normal', 'DoS', 'Probe', 'R2L', 'U2R'],
+    labels: ['DoS', 'Normal', 'Probe', 'R2L', 'U2R'],
     matrix: [
-      [13420,  2,  5,  1,  0],
-      [    3, 9180,  0,  0,  0],
-      [   10,  0, 2320, 12,  0],
-      [   18,  0,   5, 178,  0],
-      [    2,  0,   0,   0,  8],
+      [9180,    3,   0,   0,  0],
+      [   2, 13420,   5,   1,  0],
+      [   0,   10, 2320,  12,  0],
+      [   0,   18,   5, 178,  0],
+      [   0,    2,   0,   0,  8],
     ]
   },
   feature_importance: [
-    { name: 'serror_rate',          value: 18 },
-    { name: 'dst_host_serror_rate', value: 15 },
-    { name: 'src_bytes',            value: 12 },
-    { name: 'srv_serror_rate',      value: 10 },
-    { name: 'count',                value:  9 },
-    { name: 'same_srv_rate',        value:  8 },
-    { name: 'dst_bytes',            value:  7 },
-    { name: 'logged_in',            value:  6 },
-    { name: 'dst_host_count',       value:  5 },
-    { name: 'flag',                 value:  4 },
+    { name: 'serror_rate',          value: 0.18 },
+    { name: 'dst_host_serror_rate', value: 0.15 },
+    { name: 'src_bytes',            value: 0.12 },
+    { name: 'srv_serror_rate',      value: 0.10 },
+    { name: 'count',                value: 0.09 },
+    { name: 'same_srv_rate',        value: 0.08 },
+    { name: 'dst_bytes',            value: 0.07 },
+    { name: 'logged_in',            value: 0.06 },
+    { name: 'dst_host_count',       value: 0.05 },
+    { name: 'flag',                 value: 0.04 },
   ]
 }
 
@@ -93,10 +96,10 @@ export default function ModelInfo() {
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Model Details</h2>
         <div className="grid grid-cols-5 gap-4">
           {[
-            { label: 'Algorithm',  value: info.algorithm },
-            { label: 'Dataset',    value: info.dataset },
-            { label: 'Samples',    value: info.samples.toLocaleString() },
-            { label: 'Features',   value: info.features },
+            { label: 'Algorithm',   value: info.algorithm },
+            { label: 'Dataset',     value: info.dataset },
+            { label: 'Samples',     value: info.samples.toLocaleString() },
+            { label: 'Features',    value: info.features },
             { label: 'Train Split', value: info.train_size },
           ].map(({ label, value }) => (
             <div key={label}>
@@ -105,6 +108,44 @@ export default function ModelInfo() {
             </div>
           ))}
         </div>
+
+        {/* Accuracy / F1 row — only shown when real data is available */}
+        {(info.test_accuracy != null || info.val_accuracy != null) && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 32 }}>
+            {info.val_accuracy != null && (
+              <div>
+                <p style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Val Accuracy</p>
+                <p style={{ color: '#22c55e', fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {(info.val_accuracy * 100).toFixed(2)}%
+                </p>
+              </div>
+            )}
+            {info.test_accuracy != null && (
+              <div>
+                <p style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Test Accuracy</p>
+                <p style={{ color: '#3b82f6', fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {(info.test_accuracy * 100).toFixed(2)}%
+                </p>
+              </div>
+            )}
+            {info.test_f1_weighted != null && (
+              <div>
+                <p style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Test F1 (weighted)</p>
+                <p style={{ color: '#a78bfa', fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {(info.test_f1_weighted * 100).toFixed(2)}%
+                </p>
+              </div>
+            )}
+            {info.mlflow_run_id && (
+              <div>
+                <p style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>MLflow Run ID</p>
+                <p style={{ color: '#555', fontSize: 12, fontFamily: 'monospace', marginTop: 4 }}>
+                  {info.mlflow_run_id.slice(0, 12)}…
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

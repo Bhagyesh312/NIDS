@@ -100,5 +100,11 @@ class ModelInfoResponse(BaseModel):
     samples:            int
     features:           int
     train_size:         str
+    test_accuracy:      Optional[float]  = None
+    test_f1_weighted:   Optional[float]  = None
+    val_accuracy:       Optional[float]  = None
     confusion_matrix:   dict
     feature_importance: list
+    classes:            Optional[List[str]]  = None
+    mlflow_run_id:      Optional[str]        = None
+    hyperparameters:    Optional[dict]       = None
