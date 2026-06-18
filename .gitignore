@@ -19,8 +19,21 @@ env/
 .env
 # NOTE: .env.example IS committed — it's a safe template with no real values
 
-# ── Model files (generated after training) ──────────────────────
-models/
+# ── Model artifacts (generated after training — large binary files) ─────────
+# Ignore the binary model and plot images, but KEEP model_info.json
+# so the /model-info API works immediately after cloning.
+models/*.pkl
+models/*.png
+
+# NOTE: models/model_info.json IS committed intentionally — it contains
+# only text metadata (accuracy, confusion matrix, feature importances)
+# and is required by the FastAPI /model-info endpoint at startup.
+
+# ── MLflow experiment tracking database ─────────────────────────
+mlruns/mlflow.db
+mlruns/artifacts/
+# NOTE: mlruns/ directory itself is fine to track; only the .db and
+# artifact blobs are excluded (they can be large and are re-generated).
 
 # ── Jupyter ─────────────────────────────────────────────────────
 .ipynb_checkpoints/
@@ -37,6 +50,7 @@ frontend/.env.production
 
 # ── Backend ─────────────────────────────────────────────────────
 backend/__pycache__/
+backend/routes/__pycache__/
 backend/.env
 # NOTE: backend/.env.example IS committed — safe template
 
