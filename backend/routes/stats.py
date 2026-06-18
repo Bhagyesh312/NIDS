@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from datetime import datetime, timedelta, timezone
 from database import get_db
 from models import Prediction
 from schemas import StatsResponse, ModelInfoResponse
@@ -151,3 +152,46 @@ def get_globe_stats(db: Session = Depends(get_db)):
         {'src_ip': r.src_ip, 'type': r.prediction, 'count': r.count}
         for r in results
     ]
+
+
+@router.get("/stats/traffic")
+def get_traffic(
+    range: str = '24h',
+    db: Session = Depends(get_db),
+):
+    """
+    Returns time-bucketed traffic counts for the Dashboard area chart.
+    range: '6h' | '12h' | '24h' | '7d'
+    Returns list of { t, n (normal), a (attacks) }
+    """
+    now = datetime.now(timezone.utc)
+
+    range_map = {
+        '6h':  (timedelta(hours=6),   timedelta(hours=1),   '%H:00'),
+        '12h': (timedelta(hours=12),  timedelta(hours=1),   '%H:00'),
+        '24h': (timedelta(hours=24),  timedelta(hours=2),   '%H:00'),
+        '7d':  (timedelta(days=7),    timedelta(days=1),    '%a'),
+    }
+    delta, bucket_size, fmt = range_map.get(range, range_map['24h'])
+    since = now - delta
+
+    rows = db.query(Prediction).filter(
+        Prediction.created_at >= since
+    ).all()
+
+    # Build buckets
+    num_buckets = int(delta / bucket_size)
+    buckets = []
+    for i in range(num_buckets):
+        bucket_start = since + i * bucket_size
+        bucket_end   = bucket_start + bucket_size
+        label = bucket_start.strftime(fmt)
+        normal  = sum(1 for r in rows if bucket_start <= r.created_at.replace(tzinfo=timezone.utc) < bucket_end and r.prediction == 'Normal')
+        attacks = sum(1 for r in rows if bucket_start <= r.created_at.replace(tzinfo=timezone.utc) < bucket_end and r.prediction != 'Normal')
+        buckets.append({'t': label, 'n': normal, 'a': attacks})
+
+    # If no DB data at all, return empty list — frontend falls back to mock
+    if not rows:
+        return []
+
+    return buckets

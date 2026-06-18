@@ -116,12 +116,17 @@ export default function ReportsPage() {
     { ip: '203.0.113.42',  count: 31, type: 'R2L'   },
     { ip: '198.51.100.23', count: 29, type: 'DoS'   },
   ])
+  const [weeklyData, setWeeklyData] = useState(weekly)
 
   useEffect(() => {
-    if (mockMode) return   // stay on mock data when in demo mode
+    if (mockMode) {
+      setWeeklyData(weekly)
+      return
+    }
     getReports()
       .then(res => {
         const d = res.data
+
         if (d.category_stats?.length) {
           const total = d.category_stats.reduce((s, c) => s + c.total, 0)
           setCategoryStats(d.category_stats.map(c => ({
@@ -130,18 +135,28 @@ export default function ReportsPage() {
             pct:  total > 0 ? parseFloat(((c.total / total) * 100).toFixed(1)) : 0,
           })))
         }
+
         if (d.top_ips?.length) {
-          setTopIPs(d.top_ips.map(ip => ({
-            ip:    ip.ip,
-            count: ip.count,
-            type:  ip.type,
-          })))
+          setTopIPs(d.top_ips.map(ip => ({ ip: ip.ip, count: ip.count, type: ip.type })))
+        }
+
+        // Build weekly chart from daily[] — group by day label, pivot by attack type
+        if (d.daily?.length) {
+          const dayMap = {}
+          d.daily.forEach(row => {
+            const label = new Date(row.day + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })
+            if (!dayMap[label]) dayMap[label] = { day: label, DoS: 0, Probe: 0, R2L: 0, U2R: 0, Normal: 0 }
+            if (row.type in dayMap[label]) dayMap[label][row.type] += row.count
+          })
+          const built = Object.values(dayMap).slice(-7) // last 7 days
+          if (built.length) setWeeklyData(built)
         }
       })
-      .catch(() => {}) // keep mock data if backend offline
-  }, [])
+      .catch(() => {})  // keep mock data if backend offline
+  }, [mockMode])
 
   const totalAttacks = categoryStats.filter(c => c.name !== 'Normal').reduce((s, c) => s + c.total, 0)
+  const thisWeek     = weeklyData.reduce((s, d) => s + (d.DoS||0) + (d.Probe||0) + (d.R2L||0) + (d.U2R||0), 0)
 
   const downloadReport = () => {
     const lines = [
@@ -166,10 +181,10 @@ export default function ReportsPage() {
       {/* Summary stat row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 14 }}>
         {[
-          { label: 'Total Attacks',  value: totalAttacks.toLocaleString(), color: CATEGORY_COLORS.DoS },
-          { label: 'This Week',      value: weekly.reduce((s,d) => s + d.DoS + d.Probe + d.R2L + d.U2R, 0), color: CATEGORY_COLORS.Probe },
-          { label: 'Avg / Day',      value: Math.round(totalAttacks / 7), color: CATEGORY_COLORS.R2L },
-          { label: 'Detection Rate', value: '98.4%', color: '#3b82f6' },
+          { label: 'Total Attacks',  value: totalAttacks.toLocaleString(),      color: CATEGORY_COLORS.DoS   },
+          { label: 'This Week',      value: thisWeek.toLocaleString(),           color: CATEGORY_COLORS.Probe },
+          { label: 'Avg / Day',      value: Math.round(thisWeek / 7),            color: CATEGORY_COLORS.R2L   },
+          { label: 'Detection Rate', value: '98.4%',                             color: '#3b82f6'             },
         ].map((s, i) => (
           <motion.div key={s.label} {...fadeUp(i * 0.08, ready)} style={card}>
             <div style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>{s.label}</div>
@@ -195,7 +210,7 @@ export default function ReportsPage() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={weekly} barSize={12} barGap={2} margin={{ left: -16, right: 0 }}>
+            <BarChart data={weeklyData} barSize={12} barGap={2} margin={{ left: -16, right: 0 }}>
               <CartesianGrid strokeDasharray="2 4" stroke="#1f1f1f" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#333', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#333', fontSize: 10 }} axisLine={false} tickLine={false} />

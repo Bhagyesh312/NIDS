@@ -22,6 +22,7 @@ export const batchPredict  = (formData)  => api.post('/predict/batch', formData,
   headers: { 'Content-Type': 'multipart/form-data' },
 })
 export const getStats      = ()          => api.get('/stats')
+export const getTraffic    = (range)     => api.get('/stats/traffic', { params: { range } })
 export const getModelInfo  = ()          => api.get('/model-info')
 export const getAlerts     = (params)    => api.get('/alerts', { params })
 export const getAlertCount = ()          => api.get('/alerts/count')

@@ -7,92 +7,86 @@ import Header from '../components/Header'
 import StatCards from '../components/StatCards'
 import Badge from '../components/Badge'
 import { CATEGORY_COLORS, categoryColors, CATEGORIES } from '../lib/colors'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Command, X } from 'lucide-react'
 import { useReady } from '../lib/readyContext'
+import { useMockMode } from '../lib/mockModeContext'
+import { getStats, getTraffic, getAlerts } from '../lib/api'
 
-// ── Data ────────────────────────────────────────────────────────────────────
+// ── Mock fallback data ───────────────────────────────────────────────────────
 
-const distribution = [
+const MOCK_DISTRIBUTION = [
   { name: 'Normal', value: 67343 },
   { name: 'DoS',    value: 45927 },
   { name: 'Probe',  value: 11656 },
   { name: 'R2L',    value: 995   },
   { name: 'U2R',    value: 52    },
 ]
+const MOCK_TOTAL = 125973
 
-// Full 7-day dataset keyed by range label
-const trafficData = {
+const MOCK_TRAFFIC = {
   '6h': [
-    { t: '18:00', n: 1420, a: 44 },
-    { t: '19:00', n: 1310, a: 38 },
-    { t: '20:00', n: 980,  a: 31 },
-    { t: '21:00', n: 860,  a: 24 },
-    { t: '22:00', n: 740,  a: 19 },
-    { t: '23:00', n: 620,  a: 14 },
+    { t: '18:00', n: 1420, a: 44 }, { t: '19:00', n: 1310, a: 38 },
+    { t: '20:00', n: 980,  a: 31 }, { t: '21:00', n: 860,  a: 24 },
+    { t: '22:00', n: 740,  a: 19 }, { t: '23:00', n: 620,  a: 14 },
   ],
   '12h': [
-    { t: '12:00', n: 1380, a: 55 },
-    { t: '13:00', n: 1490, a: 70 },
-    { t: '14:00', n: 1600, a: 78 },
-    { t: '15:00', n: 1680, a: 85 },
-    { t: '16:00', n: 1750, a: 91 },
-    { t: '17:00', n: 1600, a: 60 },
-    { t: '18:00', n: 1420, a: 44 },
-    { t: '19:00', n: 1310, a: 38 },
-    { t: '20:00', n: 980,  a: 31 },
-    { t: '21:00', n: 860,  a: 24 },
-    { t: '22:00', n: 740,  a: 19 },
-    { t: '23:00', n: 620,  a: 14 },
+    { t: '12:00', n: 1380, a: 55 }, { t: '13:00', n: 1490, a: 70 },
+    { t: '14:00', n: 1600, a: 78 }, { t: '15:00', n: 1680, a: 85 },
+    { t: '16:00', n: 1750, a: 91 }, { t: '17:00', n: 1600, a: 60 },
+    { t: '18:00', n: 1420, a: 44 }, { t: '19:00', n: 1310, a: 38 },
+    { t: '20:00', n: 980,  a: 31 }, { t: '21:00', n: 860,  a: 24 },
+    { t: '22:00', n: 740,  a: 19 }, { t: '23:00', n: 620,  a: 14 },
   ],
   '24h': [
-    { t: '00:00', n: 820,  a: 12 },
-    { t: '02:00', n: 432,  a: 8  },
-    { t: '04:00', n: 380,  a: 5  },
-    { t: '06:00', n: 690,  a: 22 },
-    { t: '08:00', n: 1200, a: 48 },
-    { t: '10:00', n: 1450, a: 62 },
-    { t: '12:00', n: 1380, a: 55 },
-    { t: '14:00', n: 1600, a: 78 },
-    { t: '16:00', n: 1750, a: 91 },
-    { t: '18:00', n: 1420, a: 44 },
-    { t: '20:00', n: 980,  a: 31 },
-    { t: '22:00', n: 740,  a: 19 },
+    { t: '00:00', n: 820, a: 12 }, { t: '02:00', n: 432, a: 8  },
+    { t: '04:00', n: 380, a: 5  }, { t: '06:00', n: 690, a: 22 },
+    { t: '08:00', n: 1200,a: 48 }, { t: '10:00', n: 1450,a: 62 },
+    { t: '12:00', n: 1380,a: 55 }, { t: '14:00', n: 1600,a: 78 },
+    { t: '16:00', n: 1750,a: 91 }, { t: '18:00', n: 1420,a: 44 },
+    { t: '20:00', n: 980, a: 31 }, { t: '22:00', n: 740, a: 19 },
   ],
   '7d': [
-    { t: 'Mon', n: 9200,  a: 28  },
-    { t: 'Tue', n: 11400, a: 41  },
-    { t: 'Wed', n: 10800, a: 35  },
-    { t: 'Thu', n: 13200, a: 62  },
-    { t: 'Fri', n: 11900, a: 44  },
-    { t: 'Sat', n: 8600,  a: 51  },
+    { t: 'Mon', n: 9200,  a: 28  }, { t: 'Tue', n: 11400, a: 41 },
+    { t: 'Wed', n: 10800, a: 35  }, { t: 'Thu', n: 13200, a: 62 },
+    { t: 'Fri', n: 11900, a: 44  }, { t: 'Sat', n: 8600,  a: 51 },
     { t: 'Sun', n: 12480, a: 347 },
   ],
 }
 
-const allAlerts = [
-  { id: 1,  type: 'DoS',    src: '192.168.1.104', dst: '10.0.0.1',  conf: 98.2, time: '2m ago'  },
-  { id: 2,  type: 'Probe',  src: '172.16.0.55',   dst: '10.0.0.5',  conf: 94.7, time: '8m ago'  },
-  { id: 3,  type: 'R2L',    src: '203.0.113.42',  dst: '10.0.0.12', conf: 89.1, time: '15m ago' },
-  { id: 4,  type: 'DoS',    src: '198.51.100.23', dst: '10.0.0.1',  conf: 97.5, time: '21m ago' },
-  { id: 5,  type: 'Probe',  src: '192.168.1.200', dst: '10.0.0.8',  conf: 91.3, time: '34m ago' },
-  { id: 6,  type: 'U2R',    src: '10.0.0.99',     dst: '10.0.0.3',  conf: 83.6, time: '47m ago' },
-  { id: 7,  type: 'DoS',    src: '10.10.1.88',    dst: '10.0.0.2',  conf: 96.1, time: '1h ago'  },
-  { id: 8,  type: 'R2L',    src: '172.20.5.11',   dst: '10.0.0.6',  conf: 87.4, time: '1h ago'  },
-  { id: 9,  type: 'Normal', src: '192.168.0.14',  dst: '10.0.0.4',  conf: 99.8, time: '1h ago'  },
-  { id: 10, type: 'U2R',    src: '10.0.2.33',     dst: '10.0.0.9',  conf: 81.2, time: '2h ago'  },
+const MOCK_ALERTS = [
+  { id: 1,  type: 'DoS',   src: '192.168.1.104', dst: '10.0.0.1',  conf: 98.2, time: '2m ago'  },
+  { id: 2,  type: 'Probe', src: '172.16.0.55',   dst: '10.0.0.5',  conf: 94.7, time: '8m ago'  },
+  { id: 3,  type: 'R2L',   src: '203.0.113.42',  dst: '10.0.0.12', conf: 89.1, time: '15m ago' },
+  { id: 4,  type: 'DoS',   src: '198.51.100.23', dst: '10.0.0.1',  conf: 97.5, time: '21m ago' },
+  { id: 5,  type: 'Probe', src: '192.168.1.200', dst: '10.0.0.8',  conf: 91.3, time: '34m ago' },
+  { id: 6,  type: 'U2R',   src: '10.0.0.99',     dst: '10.0.0.3',  conf: 83.6, time: '47m ago' },
+  { id: 7,  type: 'DoS',   src: '10.10.1.88',    dst: '10.0.0.2',  conf: 96.1, time: '1h ago'  },
+  { id: 8,  type: 'R2L',   src: '172.20.5.11',   dst: '10.0.0.6',  conf: 87.4, time: '1h ago'  },
+  { id: 9,  type: 'Normal',src: '192.168.0.14',  dst: '10.0.0.4',  conf: 99.8, time: '1h ago'  },
+  { id: 10, type: 'U2R',   src: '10.0.2.33',     dst: '10.0.0.9',  conf: 81.2, time: '2h ago'  },
 ]
 
-const PIE_COLORS = categoryColors
-const TOTAL = 125973
-const TIME_RANGES = ['6h', '12h', '24h', '7d']
+// Normalize an alert row from the backend into the shape the table needs
+function normalizeAlert(a) {
+  return {
+    id:   a.id,
+    type: a.prediction,
+    src:  a.src_ip     || '—',
+    dst:  a.dst_ip     || '—',
+    conf: parseFloat((a.confidence * 100).toFixed(1)),
+    time: new Date(a.created_at).toLocaleString(),
+  }
+}
+
+const PIE_COLORS   = categoryColors
+const TIME_RANGES  = ['6h', '12h', '24h', '7d']
 const ATTACK_FILTERS = ['All', ...CATEGORIES]
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const card = { background: '#161616', border: '1px solid #1f1f1f', borderRadius: 8, padding: '18px 20px' }
 
-// ready-gated fadeUp — pass ready from component
 const fadeUp = (delay = 0, ready = true) => ({
   initial: { opacity: 0, y: 14 },
   animate: ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 },
@@ -108,11 +102,9 @@ function FilterBtn({ label, active, color, onClick }) {
       style={{
         background: active ? (color ? `${color}18` : '#1f1f1f') : 'transparent',
         border: `1px solid ${active ? (color || '#3b3b3b') : '#2a2a2a'}`,
-        borderRadius: 5,
-        color: active ? (color || '#ccc') : '#555',
+        borderRadius: 5, color: active ? (color || '#ccc') : '#555',
         fontSize: 11, fontWeight: active ? 600 : 400,
-        padding: '4px 10px', cursor: 'pointer',
-        transition: 'all 0.15s',
+        padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s',
       }}
     >
       {label}
@@ -137,17 +129,85 @@ const TT = ({ active, payload, label }) => {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ feedOpen, onFeedToggle }) {
-  const ready = useReady()
-  const [hint, setHint]               = useState(() => !localStorage.getItem('cmd-hint-dismissed'))
-  const [timeRange, setTimeRange]     = useState('24h')
-  const [alertFilter, setAlertFilter] = useState('All')
+  const ready                             = useReady()
+  const { mockMode }                      = useMockMode()
+  const [hint, setHint]                   = useState(() => !localStorage.getItem('cmd-hint-dismissed'))
+  const [timeRange, setTimeRange]         = useState('24h')
+  const [alertFilter, setAlertFilter]     = useState('All')
+
+  // ── Real data state ──────────────────────────────────────────
+  const [distribution, setDistribution]   = useState(MOCK_DISTRIBUTION)
+  const [total, setTotal]                 = useState(MOCK_TOTAL)
+  const [trafficData, setTrafficData]     = useState(MOCK_TRAFFIC)
+  const [alerts, setAlerts]               = useState(MOCK_ALERTS)
 
   useEffect(() => { document.title = 'NIDS · Dashboard' }, [])
 
-  const trafficChartData = trafficData[timeRange]
+  // Fetch distribution + stat totals
+  useEffect(() => {
+    if (mockMode) { setDistribution(MOCK_DISTRIBUTION); setTotal(MOCK_TOTAL); return }
+    getStats()
+      .then(res => {
+        const d = res.data
+        if (d.distribution?.length) {
+          // Ensure all 5 categories are represented (backend only returns what's in DB)
+          const map = Object.fromEntries(d.distribution.map(x => [x.name, x.value]))
+          const full = CATEGORIES.map(name => ({ name, value: map[name] ?? 0 }))
+          setDistribution(full)
+          setTotal(d.total ?? MOCK_TOTAL)
+        }
+      })
+      .catch(() => { setDistribution(MOCK_DISTRIBUTION); setTotal(MOCK_TOTAL) })
+  }, [mockMode])
+
+  // Fetch traffic chart data for current time range
+  const fetchTraffic = useCallback((range) => {
+    if (mockMode) return
+    getTraffic(range)
+      .then(res => {
+        if (res.data?.length) {
+          setTrafficData(prev => ({ ...prev, [range]: res.data }))
+        }
+        // else keep mock for this range
+      })
+      .catch(() => {})
+  }, [mockMode])
+
+  useEffect(() => { fetchTraffic(timeRange) }, [timeRange, fetchTraffic])
+
+  // Fetch recent alerts for dashboard table
+  useEffect(() => {
+    if (mockMode) { setAlerts(MOCK_ALERTS); return }
+    // Get all predictions including normal for the dashboard table
+    getAlerts({ limit: 10 })
+      .then(res => {
+        if (res.data?.length) setAlerts(res.data.map(normalizeAlert))
+        else setAlerts(MOCK_ALERTS)
+      })
+      .catch(() => setAlerts(MOCK_ALERTS))
+  }, [mockMode])
+
+  // Auto-refresh alerts every 30s in API mode
+  useEffect(() => {
+    if (mockMode) return
+    const id = setInterval(() => {
+      getAlerts({ limit: 10 })
+        .then(res => { if (res.data?.length) setAlerts(res.data.map(normalizeAlert)) })
+        .catch(() => {})
+    }, 30000)
+    return () => clearInterval(id)
+  }, [mockMode])
+
+  const trafficChartData = trafficData[timeRange] ?? MOCK_TRAFFIC[timeRange]
+
   const filteredAlerts = alertFilter === 'All'
-    ? allAlerts
-    : allAlerts.filter(a => a.type === alertFilter)
+    ? alerts
+    : alerts.filter(a => a.type === alertFilter)
+
+  const normalItem = distribution.find(d => d.name === 'Normal')
+  const normalPct  = total > 0 && normalItem
+    ? ((normalItem.value / total) * 100).toFixed(1)
+    : '53.4'
 
   const dismissHint = () => {
     localStorage.setItem('cmd-hint-dismissed', '1')
@@ -189,6 +249,7 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
         )}
       </AnimatePresence>
 
+      {/* Stat cards — now fetch real data via StatCards component */}
       <StatCards />
 
       {/* ── Traffic chart ─────────────────────────────────────── */}
@@ -197,9 +258,8 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
           <div>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#ccc' }}>Traffic Overview</span>
             <span style={{ fontSize: 11, color: '#333', marginLeft: 8 }}>Left: normal · Right: attacks</span>
+            {!mockMode && <span style={{ fontSize: 10, color: '#444', marginLeft: 8 }}>live</span>}
           </div>
-
-          {/* Time range filter */}
           <div style={{ display: 'flex', gap: 4 }}>
             {TIME_RANGES.map(r => (
               <FilterBtn key={r} label={r} active={timeRange === r} onClick={() => setTimeRange(r)} />
@@ -208,12 +268,9 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
         </div>
 
         <AnimatePresence mode="wait">
-          <motion.div
-            key={timeRange}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+          <motion.div key={timeRange}
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
           >
             <ResponsiveContainer width="100%" height={170}>
               <AreaChart data={trafficChartData} margin={{ left: -16, right: 16, top: 4 }}>
@@ -246,10 +303,10 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
       {/* ── Bottom row ───────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 12 }}>
 
-        {/* Donut */}
+        {/* Donut — distribution from /stats */}
         <motion.div {...fadeUp(0.42, ready)} style={{ ...card, display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 2 }}>Distribution</div>
-          <div style={{ fontSize: 11, color: '#333', marginBottom: 12 }}>{TOTAL.toLocaleString()} total flows</div>
+          <div style={{ fontSize: 11, color: '#333', marginBottom: 12 }}>{total.toLocaleString()} total flows</div>
 
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
             <ResponsiveContainer width={200} height={200}>
@@ -270,14 +327,14 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
               transform: 'translate(-50%, -50%)',
               textAlign: 'center', pointerEvents: 'none',
             }}>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#f0f0f0', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>53.4%</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#f0f0f0', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{normalPct}%</div>
               <div style={{ fontSize: 10, color: '#444', marginTop: 3 }}>Normal</div>
             </div>
           </div>
 
           <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
             {distribution.map((d, i) => {
-              const pct = ((d.value / TOTAL) * 100).toFixed(1)
+              const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0'
               return (
                 <motion.div key={d.name}
                   initial={{ opacity: 0, x: -10 }} animate={ready ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
@@ -302,7 +359,7 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
           </div>
         </motion.div>
 
-        {/* Alerts table */}
+        {/* Recent alerts table — from /alerts in API mode */}
         <motion.div {...fadeUp(0.5, ready)} style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#ccc' }}>
@@ -311,14 +368,10 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
                 {filteredAlerts.length} shown
               </span>
             </span>
-
-            {/* Attack type filter */}
             <div style={{ display: 'flex', gap: 4 }}>
               {ATTACK_FILTERS.map(f => (
                 <FilterBtn
-                  key={f}
-                  label={f}
-                  active={alertFilter === f}
+                  key={f} label={f} active={alertFilter === f}
                   color={f === 'All' ? undefined : CATEGORY_COLORS[f]}
                   onClick={() => setAlertFilter(f)}
                 />
@@ -338,8 +391,7 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
               <AnimatePresence mode="popLayout">
                 {filteredAlerts.map((a, i) => (
                   <motion.tr
-                    key={a.id}
-                    layout
+                    key={a.id} layout
                     initial={{ opacity: 0, x: -10 }}
                     animate={ready ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
                     exit={{ opacity: 0, x: 10 }}
@@ -351,13 +403,12 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
                     <td style={{ padding: '9px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{a.src}</td>
                     <td style={{ padding: '9px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{a.dst}</td>
                     <td style={{ padding: '9px 0', fontSize: 12, color: '#ccc', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                      {a.conf.toFixed(1)}%
+                      {typeof a.conf === 'number' ? a.conf.toFixed(1) : a.conf}%
                     </td>
                     <td style={{ padding: '9px 0', fontSize: 11, color: '#333' }}>{a.time}</td>
                   </motion.tr>
                 ))}
               </AnimatePresence>
-
               {filteredAlerts.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: '24px 0', textAlign: 'center', color: '#333', fontSize: 12 }}>
@@ -368,6 +419,7 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
             </tbody>
           </table>
         </motion.div>
+
       </div>
     </div>
   )

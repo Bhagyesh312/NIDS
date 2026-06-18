@@ -3,18 +3,24 @@ import { motion } from 'framer-motion'
 import { ShieldCheck, LayoutDashboard, Bell, Upload, FileText, Settings, BookOpen } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
+import { useAlertCount } from '../lib/alertsStore'
+import { useMockMode } from '../lib/mockModeContext'
 
-const links = [
+const NAV_LINKS = [
   { to: '/info',     label: 'Info',       icon: BookOpen },
   { to: '/',         label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/alerts',   label: 'Alerts',     icon: Bell, badge: 3 },
+  { to: '/alerts',   label: 'Alerts',     icon: Bell, showBadge: true },
   { to: '/batch',    label: 'Upload CSV', icon: Upload },
   { to: '/reports',  label: 'Reports',    icon: FileText },
   { to: '/settings', label: 'Settings',   icon: Settings },
 ]
 
 export default function Sidebar() {
-  const ready = useReady()
+  const ready            = useReady()
+  const { mockMode }     = useMockMode()
+  const liveAlertCount   = useAlertCount()
+  // In demo mode show a fixed placeholder badge; in API mode show the real count
+  const alertBadge = mockMode ? 3 : liveAlertCount
   return (
     <motion.aside
       initial={{ x: -220 }}
@@ -50,7 +56,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '8px 8px' }}>
-        {links.map(({ to, label, icon: Icon, badge }, i) => (
+        {NAV_LINKS.map(({ to, label, icon: Icon, showBadge }, i) => (
           <motion.div
             key={to}
             initial={{ opacity: 0, x: -16 }}
@@ -75,7 +81,7 @@ export default function Sidebar() {
                 >
                   <Icon size={15} color={isActive ? '#3b82f6' : '#444'} />
                   <span style={{ flex: 1 }}>{label}</span>
-                  {badge && (
+                  {showBadge && alertBadge > 0 && (
                     <motion.span
                       animate={{ scale: [1, 1.15, 1] }}
                       transition={{ duration: 2, repeat: Infinity, repeatDelay: 2 }}
@@ -85,7 +91,7 @@ export default function Sidebar() {
                         borderRadius: 4, padding: '1px 5px',
                       }}
                     >
-                      {badge}
+                      {alertBadge > 99 ? '99+' : alertBadge}
                     </motion.span>
                   )}
                 </motion.div>
