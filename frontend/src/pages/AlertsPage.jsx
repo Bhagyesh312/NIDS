@@ -179,10 +179,10 @@ export default function AlertsPage() {
             <motion.button key={f} whileTap={{ scale: 0.95 }}
               onClick={() => { setFilter(f); setPage(1) }}
               style={{
-                background: typeFilter === f ? (f === 'All' ? '#1f1f1f' : `${CATEGORY_COLORS[f]}18`) : 'transparent',
-                border: `1px solid ${typeFilter === f ? (f === 'All' ? '#3b3b3b' : CATEGORY_COLORS[f] + '40') : '#2a2a2a'}`,
+                background: typeFilter === f ? (f === 'All' ? 'var(--surface3)' : `${CATEGORY_COLORS[f]}18`) : 'transparent',
+                border: `1px solid ${typeFilter === f ? (f === 'All' ? 'var(--border2)' : CATEGORY_COLORS[f] + '40') : 'var(--border2)'}`,
                 borderRadius: 5, padding: '5px 11px',
-                color: typeFilter === f ? (f === 'All' ? '#ccc' : CATEGORY_COLORS[f]) : '#555',
+                color: typeFilter === f ? (f === 'All' ? 'var(--text-strong)' : CATEGORY_COLORS[f]) : 'var(--text-soft)',
                 fontSize: 11, fontWeight: typeFilter === f ? 600 : 400, cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
@@ -238,8 +238,8 @@ export default function AlertsPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
                         transition={{ delay: i * 0.03, duration: 0.2 }}
-                        whileHover={{ backgroundColor: '#1a1a1a' }}
-                        style={{ borderTop: '1px solid #1a1a1a' }}
+                        whileHover={{ backgroundColor: 'var(--surface3)' }}
+                        style={{ borderTop: '1px solid var(--border)' }}
                       >
                         <td style={{ padding: '10px 0 10px 20px', fontSize: 11, color: '#333', fontVariantNumeric: 'tabular-nums' }}>{a.id}</td>
                         <td style={{ padding: '10px 12px 10px 0' }}><Badge label={a.type} /></td>

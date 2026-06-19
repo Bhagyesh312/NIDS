@@ -101,9 +101,9 @@ function FilterBtn({ label, active, color, onClick }) {
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       style={{
-        background: active ? (color ? `${color}18` : '#1f1f1f') : 'transparent',
-        border: `1px solid ${active ? (color || '#3b3b3b') : '#2a2a2a'}`,
-        borderRadius: 5, color: active ? (color || '#ccc') : '#555',
+        background: active ? (color ? `${color}18` : 'var(--surface3)') : 'transparent',
+        border: `1px solid ${active ? (color || 'var(--border2)') : 'var(--border2)'}`,
+        borderRadius: 5, color: active ? (color || 'var(--text-strong)') : 'var(--text-soft)',
         fontSize: 11, fontWeight: active ? 600 : 400,
         padding: '4px 10px', cursor: 'pointer', transition: 'all 0.15s',
       }}
@@ -116,8 +116,8 @@ function FilterBtn({ label, active, color, onClick }) {
 const TT = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 12px' }}>
-      <p style={{ color: '#555', fontSize: 11, marginBottom: 4 }}>{label}</p>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 6, padding: '8px 12px' }}>
+      <p style={{ color: 'var(--text-soft)', fontSize: 11, marginBottom: 4 }}>{label}</p>
       {payload.map(p => (
         <p key={p.name} style={{ color: p.color, fontSize: 12, fontWeight: 600 }}>
           {p.name}: {p.value.toLocaleString()}

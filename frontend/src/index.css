@@ -6,56 +6,71 @@
 /* ── Dark theme (default) ── */
 :root, [data-theme="dark"] {
   --bg:           #0d0d0d;
+  --app-bg:       radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 32%), linear-gradient(180deg, #101010 0%, #0d0d0d 60%, #0b0b0b 100%);
   --surface:      #161616;
   --surface2:     #111111;
   --surface3:     #1a1a1a;
+  --surface4:     #0f0f0f;
   --border:       #1f1f1f;
   --border2:      #2a2a2a;
   --text:         #f0f0f0;
-  --text2:        #e2e2e2;
-  --text3:        #ccc;
-  --muted:        #888;
-  --muted2:       #555;
-  --muted3:       #333;
-  --muted4:       #2a2a2a;
+  --text-strong:  #e2e2e2;
+  --text-body:    #ccc;
+  --text-muted:   #888;
+  --text-soft:    #555;
+  --text-subtle:  #444;
+  --text-faint:   #333;
   --input-bg:     #0d0d0d;
   --sidebar-bg:   #111111;
   --card-bg:      #161616;
+  --panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
+  --panel-glow:   rgba(59, 130, 246, 0.12);
   --header-hint:  #0f1620;
   --header-hint-border: #1e2d45;
+  --focus-ring:   0 0 0 3px rgba(59, 130, 246, 0.22);
 }
 
 /* ── Light theme ── */
 [data-theme="light"] {
-  --bg:           #f0f2f5;
-  --surface:      #ffffff;
-  --surface2:     #f8f9fa;
-  --surface3:     #eef0f3;
-  --border:       #e4e6ea;
-  --border2:      #d0d3d8;
-  --text:         #111111;
-  --text2:        #222222;
-  --text3:        #333333;
-  --muted:        #555555;
-  --muted2:       #777777;
-  --muted3:       #999999;
-  --muted4:       #cccccc;
-  --input-bg:     #ffffff;
-  --sidebar-bg:   #ffffff;
-  --card-bg:      #ffffff;
-  --header-hint:  #eef2ff;
-  --header-hint-border: #c7d2fe;
+  --bg:           #f4f7fb;
+  --app-bg:       radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 28%), linear-gradient(180deg, #fbfcff 0%, #f4f7fb 56%, #edf2f8 100%);
+  --surface:      rgba(255, 255, 255, 0.92);
+  --surface2:     #f7faff;
+  --surface3:     #eef4fb;
+  --surface4:     #e5edf7;
+  --border:       #dbe4ef;
+  --border2:      #c8d4e2;
+  --text:         #102033;
+  --text-strong:  #18263a;
+  --text-body:    #2b394a;
+  --text-muted:   #5f7086;
+  --text-soft:    #74839b;
+  --text-subtle:  #8b98ab;
+  --text-faint:   #a7b0bf;
+  --input-bg:     rgba(255, 255, 255, 0.96);
+  --sidebar-bg:   rgba(255, 255, 255, 0.92);
+  --card-bg:      rgba(255, 255, 255, 0.96);
+  --panel-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --panel-glow:   rgba(37, 99, 235, 0.08);
+  --header-hint:  #eff6ff;
+  --header-hint-border: #c7ddff;
+  --focus-ring:   0 0 0 3px rgba(37, 99, 235, 0.16);
 }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text2);
+  background: var(--app-bg);
+  color: var(--text-body);
   font-family: 'Inter', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   transition: background 0.25s ease, color 0.25s ease;
+  color-scheme: dark;
+}
+
+[data-theme="light"] body {
+  color-scheme: light;
 }
 
 /* ── Layout wrappers that pick up CSS vars ── */
@@ -73,6 +88,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 18px 20px;
+  box-shadow: var(--panel-shadow);
 }
 
 .nids-surface2 {
@@ -82,9 +98,176 @@ body {
 /* ── Inputs ── */
 input, select, textarea {
   background: var(--input-bg);
-  color: var(--text2);
+  color: var(--text-body);
   border-color: var(--border2);
   transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.18);
+  color: var(--text);
+}
+
+[data-theme="light"] [style*="background: rgb(22, 22, 22)"] {
+  background: var(--surface) !important;
+  box-shadow: var(--panel-shadow) !important;
+  backdrop-filter: blur(14px);
+}
+
+[data-theme="light"] [style*="background: rgb(31, 31, 31)"] {
+  background: var(--surface) !important;
+  box-shadow: var(--panel-shadow) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(42, 42, 42)"] {
+  background: var(--surface3) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(17, 17, 17)"] {
+  background: var(--surface2) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(26, 26, 26)"] {
+  background: var(--surface3) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(13, 13, 13)"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 248, 252, 0.94)) !important;
+}
+
+[data-theme="light"] [style*="border: 1px solid rgb(31, 31, 31)"] {
+  border-color: var(--border) !important;
+}
+
+[data-theme="light"] [style*="border: 1px solid rgb(42, 42, 42)"] {
+  border-color: var(--border2) !important;
+}
+
+[data-theme="light"] [style*="border: 1px solid rgb(42, 42, 42)"] {
+  border-color: var(--border2) !important;
+}
+
+[data-theme="light"] [style*="border-top: 1px solid rgb(26, 26, 26)"] {
+  border-top-color: var(--border) !important;
+}
+
+[data-theme="light"] [style*="border-bottom: 1px solid rgb(31, 31, 31)"] {
+  border-bottom-color: var(--border) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(226, 226, 226)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(240, 240, 240)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(204, 204, 204)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(136, 136, 136)"] {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(102, 102, 102)"] {
+  color: var(--text-soft) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(85, 85, 85)"] {
+  color: var(--text-soft) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(68, 68, 68)"] {
+  color: var(--text-subtle) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(51, 51, 51)"] {
+  color: var(--text-faint) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(34, 34, 34)"] {
+  color: var(--text-body) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(24, 38, 58)"] {
+  color: var(--text-body) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(34, 34, 34)"] {
+  color: var(--text-body) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(31, 41, 55)"] {
+  color: var(--text-body) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(15, 23, 42)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(14, 165, 233)"] {
+  color: #2563eb !important;
+}
+
+[data-theme="light"] [style*="color: rgb(59, 130, 246)"] {
+  color: #2563eb !important;
+}
+
+[data-theme="light"] [style*="color: rgb(37, 99, 235)"] {
+  color: #1d4ed8 !important;
+}
+
+[data-theme="light"] [style*="color: rgb(17, 24, 39)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(75, 85, 99)"] {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(107, 114, 128)"] {
+  color: var(--text-soft) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(55, 65, 81)"] {
+  color: var(--text-body) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(229, 231, 235)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(243, 244, 246)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="color: rgb(249, 250, 251)"] {
+  color: var(--text-strong) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(26, 35, 50)"] {
+  background: var(--surface3) !important;
+  border-color: var(--border2) !important;
+}
+
+[data-theme="light"] [style*="background: rgb(15, 22, 32)"] {
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+}
+
+[data-theme="light"] [style*="background: rgba(0, 0, 0, 0.75)"] {
+  background: rgba(15, 23, 42, 0.42) !important;
+}
+
+[data-theme="light"] [style*="box-shadow: -20px 0 60px rgba(0, 0, 0, 0.6)"] {
+  box-shadow: -18px 0 44px rgba(15, 23, 42, 0.12) !important;
 }
 
 /* ── Table rows ── */

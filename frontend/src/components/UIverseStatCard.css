@@ -2,12 +2,12 @@
 /* Original: purple accent conference ticket; adapted to use NIDS category colors */
 
 .ticket-wrapper {
-  --t-bg: #111111;
-  --t-bg-light: #1a1a1a;
+  --t-bg: var(--surface2);
+  --t-bg-light: var(--surface);
   --t-accent: #3b82f6;
   --t-accent-glow: rgba(59, 130, 246, 0.4);
-  --t-text-main: #e2e2e2;
-  --t-text-muted: #888;
+  --t-text-main: var(--text-strong);
+  --t-text-muted: var(--text-muted);
   font-size: 10px;
   perspective: 1000px;
   display: inline-block;
@@ -24,8 +24,8 @@
     transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
     box-shadow 0.6s ease;
   box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.8),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    var(--panel-shadow),
+    0 0 0 1px color-mix(in srgb, var(--border) 78%, transparent);
   background: transparent;
 }
 
@@ -118,7 +118,8 @@
   padding: 0.3em 0.7em;
   border-radius: 99em;
   font-weight: 700;
-  background: rgba(0,0,0,0.3);
+  background: var(--surface4);
+  border-color: var(--border2);
 }
 
 .t-title {
@@ -133,7 +134,7 @@
 }
 
 .t-subtitle {
-  color: #888;
+  color: var(--text-muted);
   font-size: 0.85em;
   margin-bottom: 1.5em;
   text-transform: uppercase;
@@ -157,13 +158,13 @@
   font-size: 0.65em;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #666;
+  color: var(--text-soft);
 }
 
 .t-value {
   font-size: 1em;
   font-weight: 700;
-  color: #ccc;
+  color: var(--text-body);
 }
 
 /* Perforation */
@@ -182,7 +183,7 @@
 .t-perf-line {
   flex-grow: 1;
   height: 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+  border-top: 1px dashed color-mix(in srgb, var(--border2) 72%, transparent);
   margin: 0 1.2em;
 }
 
@@ -213,13 +214,13 @@
   height: 2.2em;
   background: repeating-linear-gradient(
     90deg,
-    #555 0, #555 2px,
+    var(--text-soft) 0, var(--text-soft) 2px,
     transparent 2px, transparent 4px,
-    #555 4px, #555 5px,
+    var(--text-soft) 4px, var(--text-soft) 5px,
     transparent 5px, transparent 8px,
-    #555 8px, #555 12px,
+    var(--text-soft) 8px, var(--text-soft) 12px,
     transparent 12px, transparent 15px,
-    #555 15px, #555 16px,
+    var(--text-soft) 15px, var(--text-soft) 16px,
     transparent 16px, transparent 18px
   );
   opacity: 0.7;
@@ -228,7 +229,7 @@
 .t-barcode-id {
   font-family: monospace;
   font-size: 0.65em;
-  color: #777;
+  color: var(--text-subtle);
   letter-spacing: 0.15em;
 }
 
@@ -238,7 +239,7 @@
   font-size: 0.7em;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #777;
+  color: var(--text-subtle);
 }
 
 .t-admit-num {

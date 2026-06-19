@@ -163,8 +163,8 @@ export default function GlobePage() {
 
         {/* Globe container */}
         <div style={{
-          background: '#0a0a0a',
-          border: '1px solid #1f1f1f',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
           borderRadius: 12,
           overflow: 'hidden',
           position: 'relative',
@@ -180,7 +180,7 @@ export default function GlobePage() {
                 style={{
                   position: 'absolute', inset: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: '#0a0a0a', flexDirection: 'column', gap: 12,
+                    background: 'var(--surface)', flexDirection: 'column', gap: 12,
                 }}
               >
                 <motion.div
@@ -188,11 +188,11 @@ export default function GlobePage() {
                   transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
                   style={{
                     width: 32, height: 32, borderRadius: '50%',
-                    border: '2px solid #1f1f1f',
+                    border: '2px solid var(--border)',
                     borderTop: '2px solid #3b82f6',
                   }}
                 />
-                <span style={{ fontSize: 12, color: '#444' }}>Loading globe...</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading globe...</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -201,11 +201,11 @@ export default function GlobePage() {
           {loaded && (
             <div style={{
               position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-              background: 'rgba(0,0,0,0.6)',
+              background: 'var(--surface3)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid var(--border)',
               borderRadius: 20, padding: '6px 16px',
-              fontSize: 11, color: '#555',
+              fontSize: 11, color: 'var(--text-soft)',
               whiteSpace: 'nowrap',
             }}>
               Drag to rotate · Scroll to zoom · Click a pin for details
@@ -222,34 +222,34 @@ export default function GlobePage() {
                 transition={{ duration: 0.2 }}
                 style={{
                   position: 'absolute', top: 16, left: 16,
-                  background: 'rgba(10,10,10,0.85)',
+                    background: 'var(--surface)',
                   backdropFilter: 'blur(12px)',
                   border: `1px solid ${CATEGORY_COLORS[selected.type]}30`,
                   borderRadius: 12, padding: '14px 16px',
                   minWidth: 220,
-                  boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px ${CATEGORY_COLORS[selected.type]}15`,
+                    boxShadow: `var(--panel-shadow), 0 0 0 1px ${CATEGORY_COLORS[selected.type]}15`,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#f0f0f0' }}>{selected.country}</div>
-                    <div style={{ fontSize: 11, color: '#555', marginTop: 2, fontFamily: 'monospace' }}>{selected.ip}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)' }}>{selected.country}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-soft)', marginTop: 2, fontFamily: 'monospace' }}>{selected.ip}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     <Badge label={selected.type} />
                     <button onClick={() => setSelected(null)}
-                      style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+                        style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{selected.desc}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{selected.desc}</div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: '#444' }}>Attacks</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-subtle)' }}>Attacks</div>
                     <div style={{ fontSize: 16, fontWeight: 700, color: CATEGORY_COLORS[selected.type], fontVariantNumeric: 'tabular-nums' }}>{selected.count.toLocaleString()}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: '#444' }}>Coords</div>
-                    <div style={{ fontSize: 11, color: '#666', fontFamily: 'monospace' }}>{selected.lat.toFixed(1)}, {selected.lng.toFixed(1)}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-subtle)' }}>Coords</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{selected.lat.toFixed(1)}, {selected.lng.toFixed(1)}</div>
                   </div>
                 </div>
               </motion.div>
@@ -262,10 +262,10 @@ export default function GlobePage() {
 
           {/* Attack type summary */}
           <div style={{
-            background: '#161616', border: '1px solid #1f1f1f',
+            background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: 10, padding: '16px 18px',
           }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>By Type</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-strong)', marginBottom: 14 }}>By Type</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) => {
                 const total = Object.values(typeCounts).reduce((s, v) => s + v, 0)
@@ -274,9 +274,9 @@ export default function GlobePage() {
                   <div key={type}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <Badge label={type} />
-                      <span style={{ fontSize: 11, color: '#555', fontVariantNumeric: 'tabular-nums' }}>{count.toLocaleString()} · {pct}%</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-soft)', fontVariantNumeric: 'tabular-nums' }}>{count.toLocaleString()} · {pct}%</span>
                     </div>
-                    <div style={{ height: 3, background: '#1f1f1f', borderRadius: 2 }}>
+                    <div style={{ height: 3, background: 'var(--surface3)', borderRadius: 2 }}>
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
@@ -292,10 +292,10 @@ export default function GlobePage() {
 
           {/* Top sources list */}
           <div style={{
-            background: '#161616', border: '1px solid #1f1f1f',
+            background: 'var(--surface)', border: '1px solid var(--border)',
             borderRadius: 10, padding: '16px 18px', flex: 1, overflowY: 'auto',
           }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>Top Sources</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-strong)', marginBottom: 14 }}>Top Sources</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {[...attackPoints].sort((a, b) => b.count - a.count).map((p, i) => (
                 <motion.div
@@ -313,14 +313,14 @@ export default function GlobePage() {
                     display: 'flex', alignItems: 'center', gap: 9,
                     padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
                     transition: 'background 0.12s',
-                    background: selected?.id === p.id ? '#1a1a1a' : 'transparent',
+                    background: selected?.id === p.id ? 'var(--surface3)' : 'transparent',
                   }}
-                  whileHover={{ background: '#1a1a1a' }}
+                  whileHover={{ background: 'var(--surface3)' }}
                 >
-                  <span style={{ fontSize: 10, color: '#333', width: 16, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-faint)', width: 16, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: CATEGORY_COLORS[p.type], flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: '#888', flex: 1 }}>{p.country}</span>
-                  <span style={{ fontSize: 11, color: '#555', fontVariantNumeric: 'tabular-nums' }}>{p.count.toLocaleString()}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{p.country}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-soft)', fontVariantNumeric: 'tabular-nums' }}>{p.count.toLocaleString()}</span>
                 </motion.div>
               ))}
             </div>
