@@ -116,11 +116,13 @@ export default function ReportsPage() {
     { ip: '203.0.113.42',  count: 31, type: 'R2L'   },
     { ip: '198.51.100.23', count: 29, type: 'DoS'   },
   ])
-  const [weeklyData, setWeeklyData] = useState(weekly)
+  const [weeklyData,     setWeeklyData]     = useState(weekly)
+  const [monthlyData,    setMonthlyData]    = useState(monthly)
+  const [detectionRate,  setDetectionRate]  = useState('98.4%')
 
   useEffect(() => {
     if (mockMode) {
-      setWeeklyData(weekly)
+      setWeeklyData(weekly); setMonthlyData(monthly); setDetectionRate('98.4%')
       return
     }
     getReports()
@@ -140,7 +142,7 @@ export default function ReportsPage() {
           setTopIPs(d.top_ips.map(ip => ({ ip: ip.ip, count: ip.count, type: ip.type })))
         }
 
-        // Build weekly chart from daily[] — group by day label, pivot by attack type
+        // Build weekly chart from daily[]
         if (d.daily?.length) {
           const dayMap = {}
           d.daily.forEach(row => {
@@ -148,11 +150,17 @@ export default function ReportsPage() {
             if (!dayMap[label]) dayMap[label] = { day: label, DoS: 0, Probe: 0, R2L: 0, U2R: 0, Normal: 0 }
             if (row.type in dayMap[label]) dayMap[label][row.type] += row.count
           })
-          const built = Object.values(dayMap).slice(-7) // last 7 days
+          const built = Object.values(dayMap).slice(-7)
           if (built.length) setWeeklyData(built)
         }
+
+        // Real monthly trend from backend
+        if (d.monthly?.length) setMonthlyData(d.monthly)
+
+        // Real detection rate from model_info.json via backend
+        if (d.detection_rate) setDetectionRate(d.detection_rate)
       })
-      .catch(() => {})  // keep mock data if backend offline
+      .catch(() => {})
   }, [mockMode])
 
   const totalAttacks = categoryStats.filter(c => c.name !== 'Normal').reduce((s, c) => s + c.total, 0)
@@ -184,7 +192,7 @@ export default function ReportsPage() {
           { label: 'Total Attacks',  value: totalAttacks.toLocaleString(),      color: CATEGORY_COLORS.DoS   },
           { label: 'This Week',      value: thisWeek.toLocaleString(),           color: CATEGORY_COLORS.Probe },
           { label: 'Avg / Day',      value: Math.round(thisWeek / 7),            color: CATEGORY_COLORS.R2L   },
-          { label: 'Detection Rate', value: '98.4%',                             color: '#3b82f6'             },
+          { label: 'Detection Rate', value: detectionRate,                        color: '#3b82f6'             },
         ].map((s, i) => (
           <motion.div key={s.label} {...fadeUp(i * 0.08, ready)} style={card}>
             <div style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>{s.label}</div>
@@ -227,7 +235,7 @@ export default function ReportsPage() {
         <motion.div {...fadeUp(0.35, ready)} style={card}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 16 }}>Monthly Attack Trend</div>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={monthly} margin={{ left: -16, right: 8, top: 4 }}>
+            <LineChart data={monthlyData} margin={{ left: -16, right: 8, top: 4 }}>
               <defs>
                 <linearGradient id="gAttackLine" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%"   stopColor={CATEGORY_COLORS.DoS} stopOpacity={0.15} />

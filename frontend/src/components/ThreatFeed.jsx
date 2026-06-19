@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Terminal, Pause, Play } from 'lucide-react'
 import { CATEGORY_COLORS, CATEGORY_BG } from '../lib/colors'
+import { useMockMode } from '../lib/mockModeContext'
+import { useRefreshSettings } from '../lib/refreshContext'
+import { getAlerts } from '../lib/api'
 
+// ── Mock generator (used in demo mode) ───────────────────────
 const ATTACK_TYPES = ['DoS', 'Probe', 'R2L', 'U2R']
 const SUBTYPES = {
   DoS:   ['neptune flood', 'smurf attack', 'back overflow', 'teardrop frag', 'apache2 exploit'],
@@ -13,46 +17,45 @@ const SUBTYPES = {
 const PORTS  = [80, 443, 22, 21, 25, 53, 3306, 8080, 8443, 3389]
 const NORMAL = ['HTTP request', 'DNS query', 'HTTPS handshake', 'TCP established', 'ICMP ping']
 
-function randIP() {
-  return `${rand(1,254)}.${rand(0,255)}.${rand(0,255)}.${rand(1,254)}`
-}
+function randIP() { return `${rand(1,254)}.${rand(0,255)}.${rand(0,255)}.${rand(1,254)}` }
 function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a }
 
-function genEntry() {
+function genMockEntry() {
   const isAttack = Math.random() < 0.35
-  const now = new Date()
-  const ts = now.toTimeString().split(' ')[0]
-
+  const ts = new Date().toTimeString().split(' ')[0]
   if (!isAttack) {
     return {
-      id: Date.now() + Math.random(),
-      ts,
-      type: 'normal',
-      label: 'OK',
-      msg: `${NORMAL[rand(0, NORMAL.length-1)]} — ${randIP()} → 10.0.0.${rand(1,20)}:${PORTS[rand(0,PORTS.length-1)]}`,
+      id: Date.now() + Math.random(), ts,
+      type: 'normal', label: 'OK',
+      msg: `${NORMAL[rand(0, NORMAL.length - 1)]} — ${randIP()} → 10.0.0.${rand(1,20)}:${PORTS[rand(0,PORTS.length - 1)]}`,
     }
   }
-
-  const attack = ATTACK_TYPES[rand(0, ATTACK_TYPES.length-1)]
-  const sub    = SUBTYPES[attack][rand(0, SUBTYPES[attack].length-1)]
+  const attack = ATTACK_TYPES[rand(0, ATTACK_TYPES.length - 1)]
+  const sub    = SUBTYPES[attack][rand(0, SUBTYPES[attack].length - 1)]
   const conf   = (rand(820, 999) / 10).toFixed(1)
   return {
-    id: Date.now() + Math.random(),
-    ts,
-    type: 'attack',
-    attack,
-    label: attack,
+    id: Date.now() + Math.random(), ts,
+    type: 'attack', attack, label: attack,
     msg: `${sub} detected — ${randIP()} → 10.0.0.${rand(1,20)}  conf:${conf}%`,
   }
 }
 
-const COLORS = {
-  DoS:    CATEGORY_COLORS.DoS,
-  Probe:  CATEGORY_COLORS.Probe,
-  R2L:    CATEGORY_COLORS.R2L,
-  U2R:    CATEGORY_COLORS.U2R,
-  normal: CATEGORY_BG.Normal,
+// Convert a DB alert row into a feed entry
+function alertToEntry(a) {
+  const isAttack = a.prediction !== 'Normal'
+  const ts = new Date(a.created_at).toTimeString().split(' ')[0]
+  return {
+    id:     a.id + '-' + a.created_at,
+    ts,
+    type:   isAttack ? 'attack' : 'normal',
+    attack: isAttack ? a.prediction : undefined,
+    label:  isAttack ? a.prediction : 'OK',
+    msg: isAttack
+      ? `${a.prediction.toLowerCase()} detected — ${a.src_ip || '?.?.?.?'} → ${a.dst_ip || '—'}  conf:${(a.confidence * 100).toFixed(1)}%`
+      : `normal traffic — ${a.src_ip || '—'} → ${a.dst_ip || '—'}  conf:${(a.confidence * 100).toFixed(1)}%`,
+  }
 }
+
 const LABEL_COLORS = {
   DoS:    CATEGORY_COLORS.DoS,
   Probe:  CATEGORY_COLORS.Probe,
@@ -62,41 +65,87 @@ const LABEL_COLORS = {
 }
 
 export default function ThreatFeed({ open }) {
-  const [entries, setEntries]         = useState([])
-  const [paused, setPaused]           = useState(false)
-  const [attackFlash, setAttackFlash] = useState(false)
-  const bottomRef                     = useRef(null)
-  const pausedRef                     = useRef(false)
-  const prevAttackCount               = useRef(0)
+  const { mockMode }                      = useMockMode()
+  const { autoRefresh, refreshRate }      = useRefreshSettings()
+  const [entries, setEntries]             = useState([])
+  const [paused, setPaused]               = useState(false)
+  const [attackFlash, setAttackFlash]     = useState(false)
+  const bottomRef                         = useRef(null)
+  const pausedRef                         = useRef(false)
+  const prevAttackCount                   = useRef(0)
+  const seenIdsRef                        = useRef(new Set())
 
   pausedRef.current = paused
 
+  // ── Seed entries on open ────────────────────────────────────
   useEffect(() => {
-    // Seed with initial entries
-    const seed = Array.from({ length: 12 }, () => genEntry())
-    setEntries(seed)
-  }, [])
+    if (!open) return
+    if (mockMode) {
+      const seed = Array.from({ length: 12 }, () => genMockEntry())
+      setEntries(seed)
+      seenIdsRef.current.clear()
+    } else {
+      // Fetch the latest 40 predictions to seed the feed
+      getAlerts({ limit: 40 })
+        .then(res => {
+          if (res.data?.length) {
+            const mapped = [...res.data].reverse().map(alertToEntry)
+            seenIdsRef.current = new Set(mapped.map(e => e.id))
+            setEntries(mapped)
+          }
+        })
+        .catch(() => {
+          const seed = Array.from({ length: 12 }, () => genMockEntry())
+          setEntries(seed)
+        })
+    }
+  }, [open, mockMode])
 
+  // ── Mock mode: random ticker ────────────────────────────────
   useEffect(() => {
+    if (!open || !mockMode) return
     const tick = () => {
       if (!pausedRef.current) {
-        setEntries(prev => {
-          const next = [...prev, genEntry()]
-          return next.slice(-80) // keep last 80 lines
-        })
+        setEntries(prev => [...prev, genMockEntry()].slice(-80))
       }
       timer = setTimeout(tick, rand(600, 2200))
     }
     let timer = setTimeout(tick, rand(600, 2200))
     return () => clearTimeout(timer)
-  }, [])
+  }, [open, mockMode])
 
+  // ── API mode: poll /alerts/all for new rows ─────────────────
+  const fetchNew = useCallback(() => {
+    if (pausedRef.current || mockMode) return
+    // GET /alerts/all returns all predictions including normal, newest first
+    getAlerts({ limit: 20 })
+      .then(res => {
+        if (!res.data?.length) return
+        const fresh = res.data
+          .map(alertToEntry)
+          .filter(e => !seenIdsRef.current.has(e.id))
+        if (fresh.length) {
+          fresh.forEach(e => seenIdsRef.current.add(e.id))
+          setEntries(prev => [...prev, ...fresh.reverse()].slice(-80))
+        }
+      })
+      .catch(() => {})
+  }, [mockMode])
+
+  useEffect(() => {
+    if (!open || mockMode || !autoRefresh) return
+    const ms = parseInt(refreshRate, 10) * 1000
+    const id = setInterval(fetchNew, ms)
+    return () => clearInterval(id)
+  }, [open, mockMode, autoRefresh, refreshRate, fetchNew])
+
+  // ── Auto-scroll ─────────────────────────────────────────────
   useEffect(() => {
     if (!paused) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [entries, paused])
 
+  // ── Attack flash on new threat ──────────────────────────────
   const attackCount = entries.filter(e => e.type === 'attack').length
-
   useEffect(() => {
     if (attackCount > prevAttackCount.current) {
       setAttackFlash(true)
@@ -114,10 +163,8 @@ export default function ThreatFeed({ open }) {
       exit={{ x: '100%', opacity: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       style={{
-        position: 'fixed',
-        top: 0, right: 0,
-        width: 440,
-        height: '100vh',
+        position: 'fixed', top: 0, right: 0,
+        width: 440, height: '100vh',
         background: '#0a0a0a',
         borderLeft: '1px solid #1f1f1f',
         boxShadow: '-20px 0 60px rgba(0,0,0,0.6)',
@@ -129,20 +176,16 @@ export default function ThreatFeed({ open }) {
       {/* Title bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '9px 12px',
-        background: '#111',
+        padding: '9px 12px', background: '#111',
         borderBottom: '1px solid #1a1a1a',
       }}>
-        {/* Traffic lights */}
         <div style={{ display: 'flex', gap: 5 }}>
           {['#ff5f56', '#ffbd2e', '#27c93f'].map(c => (
             <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, display: 'inline-block' }} />
           ))}
         </div>
-
         <Terminal size={11} color="#444" style={{ marginLeft: 4 }} />
         <span style={{ fontSize: 11, color: '#444', flex: 1 }}>nids — threat-feed</span>
-
         <motion.span
           key={attackCount}
           animate={attackFlash ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] } : {}}
@@ -151,7 +194,6 @@ export default function ThreatFeed({ open }) {
         >
           {attackCount} threats
         </motion.span>
-
         <button onClick={() => setPaused(p => !p)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: '#444' }}>
           {paused ? <Play size={12} /> : <Pause size={12} />}
@@ -161,8 +203,7 @@ export default function ThreatFeed({ open }) {
       {/* Log area */}
       <div style={{
         flex: 1, overflowY: 'auto', padding: '8px 0',
-        scrollbarWidth: 'thin',
-        scrollbarColor: '#1a1a1a transparent',
+        scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent',
       }}>
         <AnimatePresence initial={false}>
           {entries.map((e) => (
@@ -174,15 +215,10 @@ export default function ThreatFeed({ open }) {
               style={{
                 display: 'flex', alignItems: 'baseline', gap: 8,
                 padding: '2px 12px',
-                background: e.type === 'attack' ? `${COLORS[e.attack]}08` : 'transparent',
+                background: e.type === 'attack' ? `${CATEGORY_COLORS[e.attack]}08` : 'transparent',
               }}
             >
-              {/* Timestamp */}
-              <span style={{ fontSize: 10, color: '#2a2a2a', flexShrink: 0, userSelect: 'none' }}>
-                {e.ts}
-              </span>
-
-              {/* Label */}
+              <span style={{ fontSize: 10, color: '#2a2a2a', flexShrink: 0, userSelect: 'none' }}>{e.ts}</span>
               <span style={{
                 fontSize: 9, fontWeight: 700,
                 color: LABEL_COLORS[e.type === 'normal' ? 'normal' : e.attack],
@@ -190,15 +226,10 @@ export default function ThreatFeed({ open }) {
               }}>
                 {e.label}
               </span>
-
-              {/* Message */}
               <span style={{
                 fontSize: 11,
-                color: e.type === 'attack'
-                  ? LABEL_COLORS[e.attack]
-                  : '#2a3a2a',
-                lineHeight: 1.6,
-                wordBreak: 'break-all',
+                color: e.type === 'attack' ? LABEL_COLORS[e.attack] : '#2a3a2a',
+                lineHeight: 1.6, wordBreak: 'break-all',
               }}>
                 {e.msg}
               </span>
@@ -211,9 +242,7 @@ export default function ThreatFeed({ open }) {
       {/* Status bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '5px 12px',
-        borderTop: '1px solid #1a1a1a',
-        background: '#0d0d0d',
+        padding: '5px 12px', borderTop: '1px solid #1a1a1a', background: '#0d0d0d',
       }}>
         <motion.span
           animate={{ opacity: paused ? 1 : [1, 0, 1] }}
@@ -221,11 +250,9 @@ export default function ThreatFeed({ open }) {
           style={{ width: 5, height: 5, borderRadius: '50%', background: paused ? '#333' : CATEGORY_COLORS.Normal, display: 'inline-block' }}
         />
         <span style={{ fontSize: 9, color: '#2a2a2a' }}>
-          {paused ? 'PAUSED' : 'LIVE'} · {entries.length} events
+          {paused ? 'PAUSED' : mockMode ? 'DEMO' : 'LIVE'} · {entries.length} events
         </span>
-        <span style={{ fontSize: 9, color: '#1a1a1a', marginLeft: 'auto' }}>
-          NIDS v1.0 · KDD+
-        </span>
+        <span style={{ fontSize: 9, color: '#1a1a1a', marginLeft: 'auto' }}>NIDS v1.0 · KDD+</span>
       </div>
     </motion.div>
   )

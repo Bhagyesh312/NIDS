@@ -8,6 +8,7 @@ import Header from '../components/Header'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
 import { useTheme } from '../lib/themeContext.jsx'
+import { useRefreshSettings } from '../lib/refreshContext.jsx'
 import { checkHealth } from '../lib/api'
 
 const fadeUp = (delay = 0, ready = true) => ({
@@ -16,7 +17,6 @@ const fadeUp = (delay = 0, ready = true) => ({
   transition: { duration: 0.35, delay, ease: 'easeOut' },
 })
 
-// ── Toggle switch ─────────────────────────────────────────────
 function Toggle({ value, onChange, color = '#3b82f6' }) {
   return (
     <motion.div
@@ -25,30 +25,22 @@ function Toggle({ value, onChange, color = '#3b82f6' }) {
         width: 42, height: 24, borderRadius: 12,
         background: value ? color : '#2a2a2a',
         cursor: 'pointer', position: 'relative',
-        transition: 'background 0.2s',
-        flexShrink: 0,
+        transition: 'background 0.2s', flexShrink: 0,
         border: `1px solid ${value ? color : '#333'}`,
       }}
     >
       <motion.div
         animate={{ x: value ? 18 : 2 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        style={{
-          position: 'absolute', top: 2,
-          width: 18, height: 18, borderRadius: '50%',
-          background: value ? '#fff' : '#555',
-        }}
+        style={{ position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: value ? '#fff' : '#555' }}
       />
     </motion.div>
   )
 }
 
-// ── Select dropdown ───────────────────────────────────────────
 function Select({ value, options, onChange }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
+    <select value={value} onChange={e => onChange(e.target.value)}
       style={{
         background: '#1a1a1a', border: '1px solid #2a2a2a',
         borderRadius: 7, color: '#ccc', fontSize: 12,
@@ -61,7 +53,6 @@ function Select({ value, options, onChange }) {
   )
 }
 
-// ── Setting row ───────────────────────────────────────────────
 function SettingRow({ label, desc, children }) {
   return (
     <div style={{
@@ -77,7 +68,6 @@ function SettingRow({ label, desc, children }) {
   )
 }
 
-// ── Section card ──────────────────────────────────────────────
 function Section({ title, icon: Icon, color, children, delay, ready }) {
   return (
     <motion.div {...fadeUp(delay, ready)} style={{
@@ -94,14 +84,11 @@ function Section({ title, icon: Icon, color, children, delay, ready }) {
         </div>
         <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e2e2' }}>{title}</span>
       </div>
-      <div style={{ paddingTop: 4 }}>
-        {children}
-      </div>
+      <div style={{ paddingTop: 4 }}>{children}</div>
     </motion.div>
   )
 }
 
-// ── Saved toast ───────────────────────────────────────────────
 function SavedToast({ show }) {
   return (
     <AnimatePresence>
@@ -128,57 +115,52 @@ function SavedToast({ show }) {
   )
 }
 
-// ── Main component ────────────────────────────────────────────
 export default function SettingsPage() {
-  const ready               = useReady()
-  const { theme, setTheme } = useTheme()
+  const ready                             = useReady()
+  const { theme, setTheme }               = useTheme()
+  const { autoRefresh, refreshRate,
+          setAutoRefresh, setRefreshRate } = useRefreshSettings()
+
   useEffect(() => { document.title = 'NIDS · Settings' }, [])
 
-  const [notifications, setNotif]      = useState(true)
-  const [alertSound,   setAlertSound]  = useState(false)
-  const [autoRefresh,  setAutoRefresh] = useState(true)
-  const [refreshRate,  setRefreshRate] = useState('30')
-  const [feedVisible,  setFeedVisible] = useState(true)
-  const [highOnly,     setHighOnly]    = useState(false)
-  const [apiEndpoint,  setApiEndpoint] = useState(
+  const [notifications, setNotif]     = useState(true)
+  const [alertSound,    setAlertSound] = useState(false)
+  const [feedVisible,   setFeedVisible]= useState(true)
+  const [highOnly,      setHighOnly]   = useState(false)
+  const [apiEndpoint,   setApiEndpoint]= useState(
     () => localStorage.getItem('nids-api-endpoint') || 'http://localhost:8000'
   )
-  const [saved,        setSaved]       = useState(false)
-  const [connStatus,   setConnStatus]  = useState('checking') // 'checking' | 'connected' | 'disconnected'
+  const [saved,      setSaved]      = useState(false)
+  const [connStatus, setConnStatus] = useState('checking')
 
-  // Check backend connection on mount and after saving
   const checkConnection = useCallback(async () => {
     setConnStatus('checking')
-    try {
-      await checkHealth()
-      setConnStatus('connected')
-    } catch {
-      setConnStatus('disconnected')
-    }
+    try { await checkHealth(); setConnStatus('connected') }
+    catch { setConnStatus('disconnected') }
   }, [])
 
   useEffect(() => { checkConnection() }, [checkConnection])
 
   const handleSave = () => {
-    // Persist all saveable settings
     localStorage.setItem('nids-api-endpoint', apiEndpoint)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-    checkConnection() // re-check with new endpoint
-  }
-
-  const handleReset = () => {
-    const defaultEndpoint = 'http://localhost:8000'
-    setTheme('dark')
-    setNotif(true); setAlertSound(false)
-    setAutoRefresh(true); setRefreshRate('30')
-    setFeedVisible(true); setHighOnly(false)
-    setApiEndpoint(defaultEndpoint)
-    localStorage.setItem('nids-api-endpoint', defaultEndpoint)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     checkConnection()
   }
+
+  const handleReset = () => {
+    setTheme('dark')
+    setNotif(true); setAlertSound(false)
+    setAutoRefresh(true); setRefreshRate('30')
+    setFeedVisible(true); setHighOnly(false)
+    const def = 'http://localhost:8000'
+    setApiEndpoint(def)
+    localStorage.setItem('nids-api-endpoint', def)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+    checkConnection()
+  }
+
   return (
     <div style={{ maxWidth: 720 }}>
       <Header title="Settings" subtitle="Customize your dashboard preferences" />
@@ -190,18 +172,14 @@ export default function SettingsPage() {
           <SettingRow label="Theme" desc="Choose your preferred color scheme">
             <div style={{ display: 'flex', gap: 8 }}>
               {['dark', 'light'].map(t => (
-                <motion.button
-                  key={t}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setTheme(t)}
+                <motion.button key={t} whileTap={{ scale: 0.95 }} onClick={() => setTheme(t)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '6px 14px', borderRadius: 7,
                     background: theme === t ? 'rgba(59,130,246,0.1)' : 'transparent',
                     border: `1px solid ${theme === t ? '#3b82f6' : '#2a2a2a'}`,
                     color: theme === t ? '#3b82f6' : '#555',
-                    fontSize: 12, cursor: 'pointer',
-                    transition: 'all 0.15s',
+                    fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
                   }}
                 >
                   {t === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
@@ -210,7 +188,6 @@ export default function SettingsPage() {
               ))}
             </div>
           </SettingRow>
-
           <SettingRow label="Threat Feed" desc="Show the live threat feed terminal panel">
             <Toggle value={feedVisible} onChange={setFeedVisible} color={CATEGORY_COLORS.Probe} />
           </SettingRow>
@@ -221,31 +198,34 @@ export default function SettingsPage() {
           <SettingRow label="Alert notifications" desc="Show desktop notifications for new threats">
             <Toggle value={notifications} onChange={setNotif} color={CATEGORY_COLORS.DoS} />
           </SettingRow>
-
           <SettingRow label="Alert sound" desc="Play a sound when a high-severity attack is detected">
             <Toggle value={alertSound} onChange={setAlertSound} color={CATEGORY_COLORS.DoS} />
           </SettingRow>
-
           <SettingRow label="High severity only" desc="Only notify for DoS and U2R attacks">
             <Toggle value={highOnly} onChange={setHighOnly} color={CATEGORY_COLORS.R2L} />
           </SettingRow>
         </Section>
 
-        {/* Data */}
+        {/* Data & Refresh — now wired to RefreshContext */}
         <Section title="Data & Refresh" icon={Database} color={CATEGORY_COLORS.Normal} delay={0.26} ready={ready}>
-          <SettingRow label="Auto-refresh" desc="Automatically refresh dashboard data">
+          <SettingRow
+            label="Auto-refresh"
+            desc="Automatically refresh dashboard, alerts, and threat feed"
+          >
             <Toggle value={autoRefresh} onChange={setAutoRefresh} color={CATEGORY_COLORS.Normal} />
           </SettingRow>
-
-          <SettingRow label="Refresh interval" desc="How often to fetch new data from the backend">
+          <SettingRow
+            label="Refresh interval"
+            desc="How often to poll the backend for new data"
+          >
             <Select
               value={refreshRate}
               onChange={setRefreshRate}
               options={[
                 { value: '10',  label: 'Every 10 seconds' },
                 { value: '30',  label: 'Every 30 seconds' },
-                { value: '60',  label: 'Every minute' },
-                { value: '300', label: 'Every 5 minutes' },
+                { value: '60',  label: 'Every minute'     },
+                { value: '300', label: 'Every 5 minutes'  },
               ]}
             />
           </SettingRow>
@@ -265,7 +245,6 @@ export default function SettingsPage() {
               }}
             />
           </SettingRow>
-
           <SettingRow label="Connection status" desc="Current backend connection state">
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               {connStatus === 'checking' && (
@@ -296,11 +275,9 @@ export default function SettingsPage() {
           </SettingRow>
         </Section>
 
-        {/* Action buttons */}
+        {/* Actions */}
         <motion.div {...fadeUp(0.42, ready)} style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <motion.button
-            whileHover={{ borderColor: '#555', color: '#888' }}
-            whileTap={{ scale: 0.96 }}
+          <motion.button whileHover={{ borderColor: '#555', color: '#888' }} whileTap={{ scale: 0.96 }}
             onClick={handleReset}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
@@ -312,10 +289,7 @@ export default function SettingsPage() {
           >
             <RefreshCw size={13} /> Reset to defaults
           </motion.button>
-
-          <motion.button
-            whileHover={{ background: '#2563eb' }}
-            whileTap={{ scale: 0.96 }}
+          <motion.button whileHover={{ background: '#2563eb' }} whileTap={{ scale: 0.96 }}
             onClick={handleSave}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
@@ -331,7 +305,6 @@ export default function SettingsPage() {
         </motion.div>
 
       </div>
-
       <SavedToast show={saved} />
     </div>
   )

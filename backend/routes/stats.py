@@ -28,11 +28,22 @@ def get_stats(db: Session = Depends(get_db)):
 
     distribution = [{'name': r.prediction, 'value': r.count} for r in dist_raw]
 
+    # Read real test accuracy from model_info.json
+    accuracy = '97.4%'
+    if os.path.exists(_MODEL_INFO_PATH):
+        try:
+            with open(_MODEL_INFO_PATH) as f:
+                info = json.load(f)
+            if info.get('test_accuracy') is not None:
+                accuracy = f"{info['test_accuracy'] * 100:.2f}%"
+        except Exception:
+            pass
+
     # Fall back to mock if no data yet
     if total == 0:
         return StatsResponse(
             total=125973, attacks=58630, normal=67343,
-            accuracy='97.4%',
+            accuracy=accuracy,
             distribution=[
                 {'name': 'Normal', 'value': 67343},
                 {'name': 'DoS',    'value': 45927},
@@ -46,7 +57,7 @@ def get_stats(db: Session = Depends(get_db)):
         total        = total,
         attacks      = attacks,
         normal       = normal,
-        accuracy     = '97.4%',
+        accuracy     = accuracy,
         distribution = distribution,
     )
 

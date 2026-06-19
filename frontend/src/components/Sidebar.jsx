@@ -28,8 +28,8 @@ export default function Sidebar() {
       transition={{ duration: 0.35, ease: 'easeOut' }}
       style={{
         width: 220, minWidth: 220, height: '100vh',
-        background: '#111111',
-        borderRight: '1px solid #1f1f1f',
+        background: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--border)',
         display: 'flex', flexDirection: 'column',
         position: 'fixed', top: 0, left: 0, zIndex: 50,
       }}

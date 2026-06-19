@@ -50,8 +50,23 @@ export default function GlobePage() {
     }
     getGlobeStats()
       .then(res => {
-        if (res.data?.length) setAttackPoints(res.data)
-        else setAttackPoints(MOCK_ATTACK_POINTS)
+        if (res.data?.length) {
+          // Backend returns { src_ip, type, count } — normalise to panel shape
+          const normalised = res.data.map((r, i) => ({
+            id:      i + 1,
+            // No geolocation from API — globe pins stay on mock; only panel uses real data
+            lat:     MOCK_ATTACK_POINTS[i % MOCK_ATTACK_POINTS.length]?.lat ?? 0,
+            lng:     MOCK_ATTACK_POINTS[i % MOCK_ATTACK_POINTS.length]?.lng ?? 0,
+            country: r.src_ip || '—',
+            ip:      r.src_ip || '—',
+            type:    r.type,
+            count:   r.count,
+            desc:    `${r.type.toLowerCase()} attack`,
+          }))
+          setAttackPoints(normalised)
+        } else {
+          setAttackPoints(MOCK_ATTACK_POINTS)
+        }
       })
       .catch(() => setAttackPoints(MOCK_ATTACK_POINTS))
   }, [mockMode])

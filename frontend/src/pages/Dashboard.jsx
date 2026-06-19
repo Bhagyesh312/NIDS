@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Command, X } from 'lucide-react'
 import { useReady } from '../lib/readyContext'
 import { useMockMode } from '../lib/mockModeContext'
+import { useRefreshSettings } from '../lib/refreshContext'
 import { getStats, getTraffic, getAlerts } from '../lib/api'
 
 // ── Mock fallback data ───────────────────────────────────────────────────────
@@ -131,6 +132,7 @@ const TT = ({ active, payload, label }) => {
 export default function Dashboard({ feedOpen, onFeedToggle }) {
   const ready                             = useReady()
   const { mockMode }                      = useMockMode()
+  const { autoRefresh, refreshRate }      = useRefreshSettings()
   const [hint, setHint]                   = useState(() => !localStorage.getItem('cmd-hint-dismissed'))
   const [timeRange, setTimeRange]         = useState('24h')
   const [alertFilter, setAlertFilter]     = useState('All')
@@ -187,16 +189,17 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
       .catch(() => setAlerts(MOCK_ALERTS))
   }, [mockMode])
 
-  // Auto-refresh alerts every 30s in API mode
+  // Auto-refresh alerts using settings-controlled interval
   useEffect(() => {
-    if (mockMode) return
+    if (mockMode || !autoRefresh) return
+    const ms = parseInt(refreshRate, 10) * 1000
     const id = setInterval(() => {
       getAlerts({ limit: 10 })
         .then(res => { if (res.data?.length) setAlerts(res.data.map(normalizeAlert)) })
         .catch(() => {})
-    }, 30000)
+    }, ms)
     return () => clearInterval(id)
-  }, [mockMode])
+  }, [mockMode, autoRefresh, refreshRate])
 
   const trafficChartData = trafficData[timeRange] ?? MOCK_TRAFFIC[timeRange]
 

@@ -1,52 +1,61 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Crosshair, Zap } from 'lucide-react'
+import { Crosshair, Zap, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Badge from '../components/Badge'
 import UIverseButton from '../components/UIverseButton'
 import UIverseLoader from '../components/UIverseLoader'
 import { predict } from '../lib/api'
 import { CATEGORY_COLORS } from '../lib/colors'
 
+// ── Full 40-feature default form ─────────────────────────────
 const defaultForm = {
+  // Basic
   duration: 0, protocol_type: 'tcp', service: 'http', flag: 'SF',
   src_bytes: 491, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
-  hot: 0, num_failed_logins: 0, logged_in: 0, count: 1, srv_count: 1,
-  serror_rate: 0, rerror_rate: 0, same_srv_rate: 1, diff_srv_rate: 0,
+  // Content
+  hot: 0, num_failed_logins: 0, logged_in: 0, num_compromised: 0,
+  root_shell: 0, su_attempted: 0, num_root: 0, num_file_creations: 0,
+  num_shells: 0, num_access_files: 0, is_host_login: 0, is_guest_login: 0,
+  // Traffic
+  count: 1, srv_count: 1,
+  serror_rate: 0, srv_serror_rate: 0,
+  rerror_rate: 0, srv_rerror_rate: 0,
+  same_srv_rate: 1, diff_srv_rate: 0, srv_diff_host_rate: 0,
+  // Host
+  dst_host_count: 0, dst_host_srv_count: 0,
+  dst_host_same_srv_rate: 0, dst_host_diff_srv_rate: 0,
+  dst_host_same_src_port_rate: 0, dst_host_srv_diff_host_rate: 0,
+  dst_host_serror_rate: 0, dst_host_srv_serror_rate: 0,
+  dst_host_rerror_rate: 0, dst_host_srv_rerror_rate: 0,
 }
 
-// Sample flows for quick demo — realistic KDD values
+// ── Sample quick-fills ────────────────────────────────────────
 const SAMPLES = {
   DoS: {
-    label: 'DoS sample',
-    color: CATEGORY_COLORS.DoS,
-    values: { duration: 0, protocol_type: 'tcp', service: 'http', flag: 'S0',
-      src_bytes: 0, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
-      hot: 0, num_failed_logins: 0, logged_in: 0, count: 511, srv_count: 511,
-      serror_rate: 1.0, rerror_rate: 0, same_srv_rate: 1.0, diff_srv_rate: 0 },
+    label: 'DoS sample', color: CATEGORY_COLORS.DoS,
+    values: { ...defaultForm, flag: 'S0', src_bytes: 0, dst_bytes: 0,
+      count: 511, srv_count: 511, serror_rate: 1.0, srv_serror_rate: 1.0,
+      same_srv_rate: 1.0, dst_host_serror_rate: 1.0, dst_host_srv_serror_rate: 1.0 },
   },
   Probe: {
-    label: 'Probe sample',
-    color: CATEGORY_COLORS.Probe,
-    values: { duration: 0, protocol_type: 'tcp', service: 'private', flag: 'REJ',
-      src_bytes: 0, dst_bytes: 0, land: 0, wrong_fragment: 0, urgent: 0,
-      hot: 0, num_failed_logins: 0, logged_in: 0, count: 192, srv_count: 5,
-      serror_rate: 0, rerror_rate: 1.0, same_srv_rate: 0.03, diff_srv_rate: 0.06 },
+    label: 'Probe sample', color: CATEGORY_COLORS.Probe,
+    values: { ...defaultForm, service: 'private', flag: 'REJ',
+      src_bytes: 0, dst_bytes: 0, count: 192, srv_count: 5,
+      rerror_rate: 1.0, srv_rerror_rate: 1.0, same_srv_rate: 0.03, diff_srv_rate: 0.06 },
   },
   Normal: {
-    label: 'Normal sample',
-    color: CATEGORY_COLORS.Normal,
-    values: { duration: 0, protocol_type: 'tcp', service: 'http', flag: 'SF',
-      src_bytes: 232, dst_bytes: 8153, land: 0, wrong_fragment: 0, urgent: 0,
-      hot: 0, num_failed_logins: 0, logged_in: 1, count: 5, srv_count: 5,
-      serror_rate: 0, rerror_rate: 0, same_srv_rate: 1.0, diff_srv_rate: 0 },
+    label: 'Normal sample', color: CATEGORY_COLORS.Normal,
+    values: { ...defaultForm, src_bytes: 232, dst_bytes: 8153, logged_in: 1,
+      count: 5, srv_count: 5, same_srv_rate: 1.0 },
   },
 }
 
-const fields = [
+// ── Field definitions ─────────────────────────────────────────
+const BASIC_FIELDS = [
   { key: 'duration',      label: 'Duration',      type: 'number' },
   { key: 'protocol_type', label: 'Protocol',      type: 'select', options: ['tcp','udp','icmp'] },
-  { key: 'service',       label: 'Service',       type: 'select', options: ['http','ftp','smtp','ssh','other'] },
-  { key: 'flag',          label: 'Flag',          type: 'select', options: ['SF','S0','REJ','RSTO','SH'] },
+  { key: 'service',       label: 'Service',       type: 'select', options: ['http','ftp','smtp','ssh','private','other'] },
+  { key: 'flag',          label: 'Flag',          type: 'select', options: ['SF','S0','REJ','RSTO','SH','RSTR','S1','S2','S3','OTH','RSTOS0'] },
   { key: 'src_bytes',     label: 'Src Bytes',     type: 'number' },
   { key: 'dst_bytes',     label: 'Dst Bytes',     type: 'number' },
   { key: 'logged_in',     label: 'Logged In',     type: 'select', options: ['0','1'] },
@@ -58,35 +67,96 @@ const fields = [
   { key: 'diff_srv_rate', label: 'Diff Srv Rate', type: 'number' },
 ]
 
+const ADVANCED_FIELDS = [
+  // Content group
+  { key: 'land',                label: 'Land',               type: 'number', group: 'Content' },
+  { key: 'wrong_fragment',      label: 'Wrong Fragment',     type: 'number', group: 'Content' },
+  { key: 'urgent',              label: 'Urgent',             type: 'number', group: 'Content' },
+  { key: 'hot',                 label: 'Hot',                type: 'number', group: 'Content' },
+  { key: 'num_failed_logins',   label: 'Num Failed Logins',  type: 'number', group: 'Content' },
+  { key: 'num_compromised',     label: 'Num Compromised',    type: 'number', group: 'Content' },
+  { key: 'root_shell',          label: 'Root Shell',         type: 'number', group: 'Content' },
+  { key: 'su_attempted',        label: 'SU Attempted',       type: 'number', group: 'Content' },
+  { key: 'num_root',            label: 'Num Root',           type: 'number', group: 'Content' },
+  { key: 'num_file_creations',  label: 'Num File Creations', type: 'number', group: 'Content' },
+  { key: 'num_shells',          label: 'Num Shells',         type: 'number', group: 'Content' },
+  { key: 'num_access_files',    label: 'Num Access Files',   type: 'number', group: 'Content' },
+  { key: 'is_host_login',       label: 'Is Host Login',      type: 'number', group: 'Content' },
+  { key: 'is_guest_login',      label: 'Is Guest Login',     type: 'number', group: 'Content' },
+  // Traffic group
+  { key: 'srv_serror_rate',     label: 'Srv SError Rate',    type: 'number', group: 'Traffic' },
+  { key: 'srv_rerror_rate',     label: 'Srv RError Rate',    type: 'number', group: 'Traffic' },
+  { key: 'srv_diff_host_rate',  label: 'Srv Diff Host Rate', type: 'number', group: 'Traffic' },
+  // Dst Host group
+  { key: 'dst_host_count',               label: 'Dst Host Count',            type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_srv_count',           label: 'Dst Host Srv Count',        type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_same_srv_rate',       label: 'Dst Same Srv Rate',         type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_diff_srv_rate',       label: 'Dst Diff Srv Rate',         type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_same_src_port_rate',  label: 'Dst Same Src Port Rate',    type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_srv_diff_host_rate',  label: 'Dst Srv Diff Host Rate',    type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_serror_rate',         label: 'Dst SError Rate',           type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_srv_serror_rate',     label: 'Dst Srv SError Rate',       type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_rerror_rate',         label: 'Dst RError Rate',           type: 'number', group: 'Dst Host' },
+  { key: 'dst_host_srv_rerror_rate',     label: 'Dst Srv RError Rate',       type: 'number', group: 'Dst Host' },
+]
+
 const inputStyle = {
-  background: '#0d0d0d',
-  border: '1px solid #1f1f1f',
-  borderRadius: 7,
-  color: '#e2e2e2',
-  fontSize: 13,
-  padding: '8px 12px',
-  width: '100%',
-  outline: 'none',
+  background: '#0d0d0d', border: '1px solid #1f1f1f',
+  borderRadius: 7, color: '#e2e2e2', fontSize: 12,
+  padding: '7px 10px', width: '100%', outline: 'none',
   fontFamily: 'Inter, sans-serif',
 }
+const labelStyle = {
+  color: '#555', fontSize: 10, display: 'block',
+  marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em',
+}
+
+function FieldInput({ field, value, onChange }) {
+  const { key, label, type, options } = field
+  return (
+    <div key={key}>
+      <label style={labelStyle}>{label}</label>
+      {type === 'select' ? (
+        <select style={inputStyle} value={value} onChange={e => onChange(key, e.target.value)}>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input style={inputStyle} type="number" step="any" value={value}
+          onChange={e => onChange(key, parseFloat(e.target.value) || 0)} />
+      )}
+    </div>
+  )
+}
+
+const MAX_HISTORY = 8
 
 export default function Predict() {
   useEffect(() => { document.title = 'NIDS · Predict' }, [])
 
-  const [form, setForm]       = useState(defaultForm)
-  const [result, setResult]   = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState(null)
+  const [form, setForm]           = useState(defaultForm)
+  const [result, setResult]       = useState(null)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState(null)
+  const [showAdvanced, setShowAdv]= useState(false)
+  const [history, setHistory]     = useState([])   // session prediction history
 
   const handleChange = (key, val) => setForm(f => ({ ...f, [key]: val }))
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setResult(null)
+    setLoading(true); setError(null); setResult(null)
     try {
       const res = await predict(form)
-      setResult(res.data)
+      const r = res.data
+      setResult(r)
+      // Prepend to history, keep last MAX_HISTORY
+      setHistory(prev => [{
+        id:         r.prediction_id,
+        prediction: r.prediction,
+        confidence: r.confidence,
+        ts:         new Date().toLocaleTimeString(),
+        form:       { ...form },
+      }, ...prev].slice(0, MAX_HISTORY))
     } catch {
       setError('Backend not connected. Start the FastAPI server.')
     } finally {
@@ -95,6 +165,13 @@ export default function Predict() {
   }
 
   const resultColor = result ? CATEGORY_COLORS[result.prediction] || '#e2e2e2' : '#e2e2e2'
+
+  // Group advanced fields by group label
+  const advancedGroups = ADVANCED_FIELDS.reduce((acc, f) => {
+    if (!acc[f.group]) acc[f.group] = []
+    acc[f.group].push(f)
+    return acc
+  }, {})
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
@@ -106,52 +183,82 @@ export default function Predict() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
-        {/* Form card */}
+        {/* ── Form card ── */}
         <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
-          {/* Quick fill buttons */}
+
+          {/* Quick fill */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>Quick fill with sample data:</div>
             <div style={{ display: 'flex', gap: 6 }}>
               {Object.entries(SAMPLES).map(([key, s]) => (
-                <motion.button
-                  key={key}
+                <motion.button key={key}
                   whileHover={{ borderColor: s.color, color: s.color }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => { setForm(s.values); setResult(null); setError(null) }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    background: 'transparent',
-                    border: `1px solid #2a2a2a`,
+                    background: 'transparent', border: '1px solid #2a2a2a',
                     borderRadius: 6, padding: '5px 12px',
                     color: '#555', fontSize: 11, cursor: 'pointer',
                     transition: 'all 0.15s', fontFamily: 'Inter, sans-serif',
                   }}
                 >
-                  <Zap size={10} />
-                  {s.label}
+                  <Zap size={10} />{s.label}
                 </motion.button>
               ))}
             </div>
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-              {fields.map(({ key, label, type, options }) => (
-                <div key={key}>
-                  <label style={{ color: '#555', fontSize: 11, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</label>
-                  {type === 'select' ? (
-                    <select style={inputStyle} value={form[key]} onChange={e => handleChange(key, e.target.value)}>
-                      {options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  ) : (
-                    <input style={inputStyle} type="number" step="any" value={form[key]}
-                      onChange={e => handleChange(key, parseFloat(e.target.value) || 0)} />
-                  )}
-                </div>
+            {/* Basic 13 fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              {BASIC_FIELDS.map(f => (
+                <FieldInput key={f.key} field={f} value={form[f.key]} onChange={handleChange} />
               ))}
             </div>
 
-            {/* UIverse button from uiverse.io by hakemdamer222 */}
+            {/* Advanced toggle */}
+            <motion.button type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowAdv(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: 'transparent', border: '1px solid #2a2a2a',
+                borderRadius: 7, padding: '7px 14px', cursor: 'pointer',
+                color: '#555', fontSize: 12, width: '100%',
+                justifyContent: 'center', marginBottom: 14,
+                fontFamily: 'Inter, sans-serif', transition: 'all 0.15s',
+              }}
+            >
+              {showAdvanced ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              {showAdvanced ? 'Hide' : 'Show'} advanced features ({ADVANCED_FIELDS.length} more)
+            </motion.button>
+
+            {/* Advanced fields */}
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  style={{ overflow: 'hidden', marginBottom: 14 }}
+                >
+                  {Object.entries(advancedGroups).map(([groupName, fields]) => (
+                    <div key={groupName} style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid #1f1f1f' }}>
+                        {groupName}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {fields.map(f => (
+                          <FieldInput key={f.key} field={f} value={form[f.key]} onChange={handleChange} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <UIverseButton type="submit" disabled={loading}>
               <Crosshair size={15} />
               {loading ? 'Analyzing...' : 'Analyze Traffic'}
@@ -159,101 +266,138 @@ export default function Predict() {
           </form>
         </div>
 
-        {/* Result card */}
-        <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 20 }}>Result</div>
+        {/* ── Right column: result + history ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          <AnimatePresence mode="wait">
+          {/* Result card */}
+          <div style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 22 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 20 }}>Result</div>
 
-            {/* UIverse loader from uiverse.io by Uncannypotato69 */}
-            {loading && (
-              <motion.div key="loading"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 24 }}
-              >
-                <UIverseLoader text="Analyzing..." />
-                <p style={{ fontSize: 11, color: '#444' }}>Running XGBoost classifier...</p>
-              </motion.div>
-            )}
+            <AnimatePresence mode="wait">
 
-            {error && !loading && (
-              <motion.div key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div style={{
-                  background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
-                  borderRadius: 8, padding: '14px 16px',
-                }}>
-                  <p style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>{error}</p>
-                  <p style={{ color: '#555', fontSize: 11, marginTop: 6 }}>Run: <code style={{ color: '#888', fontFamily: 'monospace' }}>cd backend && uvicorn main:app --reload</code></p>
-                </div>
-              </motion.div>
-            )}
+              {loading && (
+                <motion.div key="loading"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 24 }}
+                >
+                  <UIverseLoader text="Analyzing..." />
+                  <p style={{ fontSize: 11, color: '#444' }}>Running XGBoost classifier...</p>
+                </motion.div>
+              )}
 
-            {result && !loading && (
-              <motion.div key="result"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-              >
-                {/* Prediction */}
-                <div style={{
-                  background: `${resultColor}0d`,
-                  border: `1px solid ${resultColor}30`,
-                  borderRadius: 10, padding: '16px 18px',
-                }}>
-                  <div style={{ fontSize: 11, color: '#555', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Classification</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Badge label={result.prediction} />
-                    <span style={{ fontSize: 22, fontWeight: 700, color: resultColor, fontVariantNumeric: 'tabular-nums' }}>
-                      {(result.confidence * 100).toFixed(1)}%
-                    </span>
-                    <span style={{ fontSize: 12, color: '#555' }}>confidence</span>
+              {error && !loading && (
+                <motion.div key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '14px 16px' }}>
+                    <p style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>{error}</p>
+                    <p style={{ color: '#555', fontSize: 11, marginTop: 6 }}>
+                      Run: <code style={{ color: '#888', fontFamily: 'monospace' }}>cd backend && uvicorn main:app --reload</code>
+                    </p>
                   </div>
+                </motion.div>
+              )}
 
-                  {/* Confidence bar */}
-                  <div style={{ marginTop: 12, height: 4, background: '#1f1f1f', borderRadius: 4 }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(result.confidence * 100).toFixed(1)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-                      style={{ height: '100%', background: resultColor, borderRadius: 4 }}
-                    />
-                  </div>
-                </div>
-
-                {/* Top features */}
-                {result.top_features && (
-                  <div>
-                    <p style={{ color: '#555', fontSize: 11, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Top contributing features</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {result.top_features.map(([feat, val]) => (
-                        <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ color: '#555', fontSize: 11, width: 150, flexShrink: 0, fontFamily: 'monospace' }}>{feat}</span>
-                          <div style={{ flex: 1, height: 3, background: '#1f1f1f', borderRadius: 3 }}>
-                            <div style={{
-                              width: `${Math.min(Math.abs(val) * 100, 100)}%`, height: '100%',
-                              background: val > 0 ? '#3b82f6' : '#ef4444', borderRadius: 3,
-                            }} />
-                          </div>
-                        </div>
-                      ))}
+              {result && !loading && (
+                <motion.div key="result"
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+                >
+                  <div style={{
+                    background: `${resultColor}0d`,
+                    border: `1px solid ${resultColor}30`,
+                    borderRadius: 10, padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 11, color: '#555', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Classification</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <Badge label={result.prediction} />
+                      <span style={{ fontSize: 22, fontWeight: 700, color: resultColor, fontVariantNumeric: 'tabular-nums' }}>
+                        {(result.confidence * 100).toFixed(1)}%
+                      </span>
+                      <span style={{ fontSize: 12, color: '#555' }}>confidence</span>
+                    </div>
+                    <div style={{ marginTop: 12, height: 4, background: '#1f1f1f', borderRadius: 4 }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(result.confidence * 100).toFixed(1)}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+                        style={{ height: '100%', background: resultColor, borderRadius: 4 }}
+                      />
                     </div>
                   </div>
-                )}
-              </motion.div>
-            )}
 
-            {!result && !loading && !error && (
-              <motion.div key="empty"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 12 }}
-              >
-                <Crosshair size={28} color="#2a2a2a" />
-                <p style={{ color: '#444', fontSize: 13, textAlign: 'center' }}>
-                  Fill in the network flow features<br />and click Analyze Traffic
-                </p>
-              </motion.div>
-            )}
+                  {result.top_features && (
+                    <div>
+                      <p style={{ color: '#555', fontSize: 11, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Top contributing features</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {result.top_features.map(([feat, val]) => (
+                          <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ color: '#555', fontSize: 11, width: 160, flexShrink: 0, fontFamily: 'monospace' }}>{feat}</span>
+                            <div style={{ flex: 1, height: 3, background: '#1f1f1f', borderRadius: 3 }}>
+                              <div style={{
+                                width: `${Math.min(Math.abs(val) * 100, 100)}%`, height: '100%',
+                                background: val > 0 ? '#3b82f6' : '#ef4444', borderRadius: 3,
+                              }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
-          </AnimatePresence>
+              {!result && !loading && !error && (
+                <motion.div key="empty"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', gap: 12 }}
+                >
+                  <Crosshair size={28} color="#2a2a2a" />
+                  <p style={{ color: '#444', fontSize: 13, textAlign: 'center' }}>
+                    Fill in the network flow features<br />and click Analyze Traffic
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Session history card */}
+          {history.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              style={{ background: '#161616', border: '1px solid #1f1f1f', borderRadius: 10, padding: 18 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+                <Clock size={12} color="#555" />
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#ccc' }}>Session History</span>
+                <span style={{ fontSize: 11, color: '#333', marginLeft: 'auto' }}>{history.length} predictions</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {history.map((h, i) => (
+                  <motion.div
+                    key={h.id}
+                    initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    onClick={() => { setForm(h.form); setResult(null); setError(null) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
+                      border: '1px solid #1f1f1f',
+                      transition: 'background 0.12s',
+                    }}
+                    whileHover={{ background: '#1a1a1a' }}
+                  >
+                    <Badge label={h.prediction} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: CATEGORY_COLORS[h.prediction] || '#ccc', fontVariantNumeric: 'tabular-nums' }}>
+                      {(h.confidence * 100).toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: 10, color: '#333', marginLeft: 'auto', fontFamily: 'monospace' }}>{h.ts}</span>
+                    <span style={{ fontSize: 10, color: '#444' }}>↩ re-use</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
         </div>
       </div>
     </motion.div>

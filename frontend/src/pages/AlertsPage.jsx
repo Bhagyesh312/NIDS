@@ -7,6 +7,7 @@ import { CATEGORY_COLORS, CATEGORIES } from '../lib/colors'
 import { SkeletonTableRow } from '../components/Skeleton'
 import { getAlerts } from '../lib/api'
 import { useMockMode } from '../lib/mockModeContext'
+import { useRefreshSettings } from '../lib/refreshContext'
 
 // ── Mock fallback data (used when backend is offline) ─────────────────────────
 const MOCK_ALERTS = [
@@ -59,7 +60,8 @@ function SortIcon({ field, sortBy, sortDir }) {
 }
 
 export default function AlertsPage() {
-  const { mockMode } = useMockMode()
+  const { mockMode }                 = useMockMode()
+  const { autoRefresh, refreshRate } = useRefreshSettings()
   const [rawAlerts, setRawAlerts] = useState(MOCK_ALERTS)
   const [search, setSearch]       = useState('')
   const [typeFilter, setFilter]   = useState('All')
@@ -91,12 +93,13 @@ export default function AlertsPage() {
   // Fetch on mount and when mock mode changes
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
-  // Auto-refresh every 30s when in API mode
+  // Auto-refresh using settings-controlled interval
   useEffect(() => {
-    if (mockMode) return
-    const interval = setInterval(fetchAlerts, 30000)
+    if (mockMode || !autoRefresh) return
+    const ms = parseInt(refreshRate, 10) * 1000
+    const interval = setInterval(fetchAlerts, ms)
     return () => clearInterval(interval)
-  }, [mockMode, fetchAlerts])
+  }, [mockMode, autoRefresh, refreshRate, fetchAlerts])
 
   const handleRefresh = () => fetchAlerts()
 
