@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getModelInfo } from '../lib/api'
 import SkeletonBox, { SkeletonCard } from '../components/Skeleton'
-import { CATEGORY_COLORS } from '../lib/colors'
+import { getLabelColor } from '../lib/colors'
+import { useModel } from '../lib/modelContext'
 
 const mockModel = {
   algorithm: 'XGBoost',
@@ -47,15 +48,21 @@ const HEAT_COLORS = (val, max) => {
 }
 
 export default function ModelInfo() {
+  const { activeModel }       = useModel()
   const [info, setInfo]       = useState(null)
   const [loading, setLoading] = useState(true)
+
   useEffect(() => { document.title = 'NIDS · Model Info' }, [])
 
+  // Re-fetch whenever activeModel changes
   useEffect(() => {
-    getModelInfo()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true)
+    setInfo(null)
+    getModelInfo(activeModel)
       .then(r => { setInfo(r.data); setLoading(false) })
       .catch(() => { setInfo(mockModel); setLoading(false) })
-  }, [])
+  }, [activeModel])
 
   const matMax = info ? Math.max(...info.confusion_matrix.matrix.flat()) : 1
 
@@ -82,13 +89,30 @@ export default function ModelInfo() {
     )
   }
 
+  // CICIDS has up to 10 classes — matrix can be large, so we scroll
+  const isCicids      = activeModel === 'cicids'
+  const matrixLabels  = info.confusion_matrix.labels
+  // Shorten CICIDS labels for table display
+  const shortLabel    = (l) => l.replace('Web Attack \uFFFD ', 'Web/').replace('Web Attack ï¿½ ', 'Web/')
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
       className="space-y-6">
 
-      <div>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Model Information</h1>
-        <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Training details, confusion matrix, and feature importance</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 600 }}>Model Information</h1>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Training details, confusion matrix, and feature importance</p>
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 700, borderRadius: 5, padding: '3px 10px',
+          background: isCicids ? 'rgba(167,139,250,0.15)' : 'rgba(59,130,246,0.15)',
+          color:      isCicids ? '#a78bfa' : '#3b82f6',
+          border:     `1px solid ${isCicids ? '#a78bfa30' : '#3b82f630'}`,
+          alignSelf: 'flex-start', marginTop: 4,
+        }}>
+          {isCicids ? 'CICIDS2017' : 'NSL-KDD'}
+        </span>
       </div>
 
       {/* Model details */}
@@ -111,7 +135,7 @@ export default function ModelInfo() {
 
         {/* Accuracy / F1 row — only shown when real data is available */}
         {(info.test_accuracy != null || info.val_accuracy != null) && (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 32 }}>
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 32, flexWrap: 'wrap' }}>
             {info.val_accuracy != null && (
               <div>
                 <p style={{ color: '#888', fontSize: 12, marginBottom: 6 }}>Val Accuracy</p>
@@ -146,35 +170,62 @@ export default function ModelInfo() {
             )}
           </div>
         )}
+
+        {/* Classes row for CICIDS */}
+        {isCicids && info.classes && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <p style={{ color: '#888', fontSize: 12, marginBottom: 10 }}>Detection Classes ({info.classes.length})</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {info.classes.map(cls => {
+                const col = getLabelColor(cls)
+                return (
+                  <span key={cls} style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                    background: `${col}12`, border: `1px solid ${col}25`,
+                    color: col,
+                  }}>
+                    {shortLabel(cls)}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
 
-        {/* Confusion matrix */}
+        {/* Confusion matrix — scrollable for CICIDS */}
         <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Confusion Matrix</h2>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: isCicids ? 360 : 'none' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: isCicids ? 10 : 12 }}>
               <thead>
                 <tr>
-                  <th style={{ padding: '6px 10px', color: '#888', fontWeight: 400 }}>Actual ↓ / Pred →</th>
-                  {info.confusion_matrix.labels.map(l => (
-                    <th key={l} style={{ padding: '6px 10px', color: '#888', fontWeight: 500 }}>{l}</th>
+                  <th style={{ padding: '5px 8px', color: '#888', fontWeight: 400, whiteSpace: 'nowrap', fontSize: isCicids ? 9 : 11 }}>
+                    Actual ↓ / Pred →
+                  </th>
+                  {matrixLabels.map(l => (
+                    <th key={l} style={{ padding: '5px 8px', color: '#888', fontWeight: 500, whiteSpace: 'nowrap', fontSize: isCicids ? 9 : 11 }}>
+                      {shortLabel(l)}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {info.confusion_matrix.matrix.map((row, i) => (
                   <tr key={i}>
-                    <td style={{ padding: '6px 10px', color: '#888', fontWeight: 500 }}>
-                      {info.confusion_matrix.labels[i]}
+                    <td style={{ padding: '5px 8px', color: '#888', fontWeight: 500, whiteSpace: 'nowrap', fontSize: isCicids ? 9 : 11 }}>
+                      {shortLabel(matrixLabels[i])}
                     </td>
                     {row.map((val, j) => (
                       <td key={j} style={{
-                        padding: '8px 12px', textAlign: 'center', borderRadius: 4,
+                        padding: isCicids ? '5px 8px' : '8px 12px',
+                        textAlign: 'center', borderRadius: 4,
                         background: HEAT_COLORS(val, matMax),
                         color: val > 0 ? '#F1F1EE' : '#444',
                         fontVariantNumeric: 'tabular-nums',
+                        fontSize: isCicids ? 10 : 12,
                       }}>
                         {val}
                       </td>
@@ -186,22 +237,25 @@ export default function ModelInfo() {
           </div>
         </div>
 
-        {/* Feature importance */}
+        {/* Feature importance — top 10 */}
         <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Top 10 Feature Importance</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={info.feature_importance} layout="vertical" barSize={10}
-              margin={{ left: 0, right: 16 }}>
+          <ResponsiveContainer width="100%" height={isCicids ? 280 : 240}>
+            <BarChart
+              data={info.feature_importance.slice(0, 10)}
+              layout="vertical" barSize={10}
+              margin={{ left: 0, right: 16 }}
+            >
               <XAxis type="number" tick={{ fill: '#888', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" width={170}
-                tick={{ fill: '#888', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={isCicids ? 140 : 170}
+                tick={{ fill: '#888', fontSize: isCicids ? 9 : 11 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: '#1a2235', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8 }}
                 labelStyle={{ color: '#F1F1EE', fontSize: 12 }}
                 itemStyle={{ color: '#888', fontSize: 12 }}
               />
-              <Bar dataKey="value" radius={[0,4,4,0]} name="Importance">
-                {info.feature_importance.map((_, i) => (
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} name="Importance">
+                {info.feature_importance.slice(0, 10).map((_, i) => (
                   <Cell key={i} fill={`rgba(0,102,255,${1 - i * 0.07})`} />
                 ))}
               </Bar>
@@ -210,6 +264,25 @@ export default function ModelInfo() {
         </div>
 
       </div>
+
+      {/* Hyperparameters — always shown if available */}
+      {info.hyperparameters && (
+        <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Hyperparameters</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {Object.entries(info.hyperparameters).map(([k, v]) => (
+              <div key={k} style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 6, padding: '6px 12px',
+              }}>
+                <span style={{ fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{k}</span>
+                <p style={{ fontSize: 13, color: '#ccc', fontFamily: 'monospace', margin: 0, marginTop: 2 }}>{String(v)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

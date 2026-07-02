@@ -6,15 +6,18 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { ThemeProvider } from './lib/themeContext.jsx'
 import { MockModeProvider } from './lib/mockModeContext.jsx'
 import { RefreshProvider } from './lib/refreshContext.jsx'
+import { ModelProvider } from './lib/modelContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
       <MockModeProvider>
         <RefreshProvider>
-          <ErrorBoundary fallbackMessage="Application failed to load. Check the browser console for details.">
-            <App />
-          </ErrorBoundary>
+          <ModelProvider>
+            <ErrorBoundary fallbackMessage="Application failed to load. Check the browser console for details.">
+              <App />
+            </ErrorBoundary>
+          </ModelProvider>
         </RefreshProvider>
       </MockModeProvider>
     </ThemeProvider>

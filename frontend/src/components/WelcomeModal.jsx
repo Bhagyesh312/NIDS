@@ -1,55 +1,72 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShieldCheck, Activity, Brain, Terminal, ArrowRight } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { getModelInfo } from '../lib/api'
+import { useModel } from '../lib/modelContext'
 
-// Static fallbacks — shown until /model-info responds
-const DEFAULTS = {
-  samples:      '125,973',
-  features:     '40',
-  accuracy:     '99.92',
-  testAccuracy: '80.22',
+const DEFAULTS_KDD = {
+  samples: '125,973', features: '40', accuracy: '99.92', testAccuracy: '80.22',
+  dataset: 'NSL-KDD', classes: '5 classes',
+}
+const DEFAULTS_CICIDS = {
+  samples: '1,979,513', features: '69', accuracy: '99.85', testAccuracy: '99.86',
+  dataset: 'CICIDS2017', classes: '10 classes',
 }
 
 export default function WelcomeModal({ onClose }) {
+  const { activeModel } = useModel()
+  const isCicids = activeModel === 'cicids'
+
+  const DEFAULTS = useMemo(
+    () => isCicids ? DEFAULTS_CICIDS : DEFAULTS_KDD,
+    [isCicids]
+  )
   const [stats, setStats] = useState(DEFAULTS)
 
-  // Fetch real numbers in background — non-blocking
+  // Re-fetch whenever model changes
   useEffect(() => {
-    getModelInfo()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStats(DEFAULTS)  // show defaults immediately while fetching
+    getModelInfo(activeModel)
       .then(res => {
         const d = res.data
         setStats({
-          samples:      d.samples?.toLocaleString()                        ?? DEFAULTS.samples,
-          features:     String(d.features)                                  ?? DEFAULTS.features,
+          samples:      d.samples?.toLocaleString()                          ?? DEFAULTS.samples,
+          features:     String(d.features),
           accuracy:     d.val_accuracy  != null ? (d.val_accuracy  * 100).toFixed(2) : DEFAULTS.accuracy,
           testAccuracy: d.test_accuracy != null ? (d.test_accuracy * 100).toFixed(2) : DEFAULTS.testAccuracy,
+          dataset:      d.dataset       ?? DEFAULTS.dataset,
+          classes:      d.classes?.length ? `${d.classes.length} classes` : DEFAULTS.classes,
         })
       })
-      .catch(() => {}) // keep defaults if backend offline
-  }, [])
+      .catch(() => {})
+  }, [activeModel, DEFAULTS])
+
+  const classDesc = isCicids
+    ? 'Benign, DoS, DDoS, PortScan, BruteForce, Bot, Infiltration, Web Attacks'
+    : 'DoS, Probe, R2L, U2R and Normal traffic'
 
   const features = [
     {
       icon: Activity, color: CATEGORY_COLORS.Normal,
       label: 'Live Traffic Monitoring',
-      desc: `Real-time network flow analysis across ${stats.samples}+ connections`,
+      desc:  `Real-time analysis across ${stats.samples}+ connections`,
     },
     {
       icon: ShieldCheck, color: CATEGORY_COLORS.Probe,
       label: 'Multi-class Detection',
-      desc: 'Classifies DoS, Probe, R2L, U2R and Normal traffic',
+      desc:  `${stats.classes}: ${classDesc}`,
     },
     {
       icon: Brain, color: '#3b82f6',
-      label: 'XGBoost ML Model',
-      desc: `${stats.accuracy}% val accuracy · ${stats.testAccuracy}% test · ${stats.features} features`,
+      label: `XGBoost · ${stats.dataset}`,
+      desc:  `${stats.accuracy}% val accuracy · ${stats.testAccuracy}% test · ${stats.features} features`,
     },
     {
       icon: Terminal, color: CATEGORY_COLORS.R2L,
       label: 'Live Threat Feed',
-      desc: 'Terminal-style stream of detected intrusion events',
+      desc:  'Terminal-style stream of detected intrusion events',
     },
   ]
 
@@ -85,7 +102,9 @@ export default function WelcomeModal({ onClose }) {
             transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
             style={{
               height: 2,
-              background: `linear-gradient(90deg, #3b82f6, ${CATEGORY_COLORS.Normal}, ${CATEGORY_COLORS.DoS})`,
+              background: isCicids
+                ? 'linear-gradient(90deg, #a78bfa, #22c55e, #ef4444)'
+                : `linear-gradient(90deg, #3b82f6, ${CATEGORY_COLORS.Normal}, ${CATEGORY_COLORS.DoS})`,
               transformOrigin: 'left',
             }}
           />
@@ -109,7 +128,16 @@ export default function WelcomeModal({ onClose }) {
                 <div style={{ fontSize: 18, fontWeight: 700, color: '#f0f0f0', letterSpacing: '-0.3px' }}>
                   NIDS Dashboard
                 </div>
-                <div style={{ fontSize: 11, color: '#555' }}>Network Intrusion Detection System</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: '#555' }}>Network Intrusion Detection System</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, borderRadius: 3, padding: '1px 6px',
+                    background: isCicids ? 'rgba(167,139,250,0.15)' : 'rgba(59,130,246,0.15)',
+                    color: isCicids ? '#a78bfa' : '#3b82f6',
+                  }}>
+                    {isCicids ? 'CICIDS2017' : 'NSL-KDD'}
+                  </span>
+                </div>
               </div>
             </motion.div>
 
@@ -121,8 +149,8 @@ export default function WelcomeModal({ onClose }) {
             >
               A machine learning powered security dashboard that detects and classifies
               network intrusions in real time — built on the{' '}
-              <span style={{ color: '#888' }}>NSL-KDD</span> dataset using XGBoost
-              with SMOTE-balanced training across 5 attack categories.
+              <span style={{ color: '#888' }}>{stats.dataset}</span> dataset using XGBoost
+              with SMOTE-balanced training across {stats.classes}.
             </motion.p>
 
             {/* Feature grid */}
@@ -157,7 +185,8 @@ export default function WelcomeModal({ onClose }) {
                 <kbd style={{ fontSize: 10, color: '#888', background: '#1a2332', border: '1px solid #2a3a4a', borderRadius: 3, padding: '1px 5px', fontFamily: 'monospace' }}>
                   Ctrl K
                 </kbd>
-                {' '}anywhere to open the command palette for quick navigation.
+                {' '}anywhere to open the command palette. Switch models in{' '}
+                <span style={{ color: '#888' }}>Settings → ML Model</span>.
               </span>
             </motion.div>
 

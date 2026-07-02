@@ -1,9 +1,12 @@
-from pydantic import BaseModel, field_validator
-from typing import Optional, List, ClassVar, Set
+from pydantic import BaseModel, field_validator, model_validator
+from typing import Optional, List, ClassVar, Set, Any
 from datetime import datetime
 
-# ── Predict request ───────────────────────────────────────────
+
+# ── KDD Predict request ───────────────────────────────────────
+# Used for NSL-KDD single-flow predictions (40 KDD features).
 class PredictRequest(BaseModel):
+    # Core KDD features (subset shown in the UI form)
     duration:            float = 0
     protocol_type:       str   = 'tcp'
     service:             str   = 'http'
@@ -16,14 +19,38 @@ class PredictRequest(BaseModel):
     hot:                 float = 0
     num_failed_logins:   float = 0
     logged_in:           float = 0
+    num_compromised:     float = 0
+    root_shell:          float = 0
+    su_attempted:        float = 0
+    num_root:            float = 0
+    num_file_creations:  float = 0
+    num_shells:          float = 0
+    num_access_files:    float = 0
+    is_host_login:       float = 0
+    is_guest_login:      float = 0
     count:               float = 1
     srv_count:           float = 1
     serror_rate:         float = 0
+    srv_serror_rate:     float = 0
     rerror_rate:         float = 0
+    srv_rerror_rate:     float = 0
     same_srv_rate:       float = 1
     diff_srv_rate:       float = 0
-    src_ip:              Optional[str] = None
-    dst_ip:              Optional[str] = None
+    srv_diff_host_rate:  float = 0
+    dst_host_count:               float = 0
+    dst_host_srv_count:           float = 0
+    dst_host_same_srv_rate:       float = 0
+    dst_host_diff_srv_rate:       float = 0
+    dst_host_same_src_port_rate:  float = 0
+    dst_host_srv_diff_host_rate:  float = 0
+    dst_host_serror_rate:         float = 0
+    dst_host_srv_serror_rate:     float = 0
+    dst_host_rerror_rate:         float = 0
+    dst_host_srv_rerror_rate:     float = 0
+
+    # Optional metadata (not used as model features)
+    src_ip:  Optional[str] = None
+    dst_ip:  Optional[str] = None
 
     VALID_PROTOCOLS: ClassVar[Set[str]] = {'tcp', 'udp', 'icmp'}
     VALID_FLAGS:     ClassVar[Set[str]] = {'SF', 'S0', 'REJ', 'RSTO', 'SH', 'RSTR',
@@ -60,6 +87,41 @@ class PredictRequest(BaseModel):
         return v
 
 
+# ── CICIDS Predict request ────────────────────────────────────
+# CICIDS2017 has 69 numeric features with free-form names.
+# We accept any key→float mapping so the frontend can send all fields.
+class CICIDSPredictRequest(BaseModel):
+    model_config = {"extra": "allow"}   # accept all 69 feature fields
+
+    src_ip: Optional[str] = None
+    dst_ip: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def coerce_numeric(cls, values: Any) -> Any:
+        """Coerce all non-metadata fields to float; skip nulls and metadata keys."""
+        skip = {'src_ip', 'dst_ip'}
+        if not isinstance(values, dict):
+            return values
+        coerced = {}
+        for k, v in values.items():
+            if k in skip or v is None:
+                coerced[k] = v
+            else:
+                try:
+                    coerced[k] = float(v)
+                except (TypeError, ValueError):
+                    coerced[k] = 0.0  # treat unparseable values as 0
+        return coerced
+
+    def to_feature_dict(self) -> dict:
+        """Return all fields except src_ip / dst_ip as a float dict."""
+        skip = {'src_ip', 'dst_ip'}
+        data = self.model_dump()
+        # Values are already float from coerce_numeric; filter metadata only
+        return {k: v for k, v in data.items() if k not in skip and v is not None}
+
+
 # ── Predict response ──────────────────────────────────────────
 class PredictResponse(BaseModel):
     prediction:    str
@@ -78,6 +140,7 @@ class AlertOut(BaseModel):
     prediction: str
     confidence: float
     source:     str
+    model_used: Optional[str] = 'kdd'
     created_at: datetime
 
     class Config:

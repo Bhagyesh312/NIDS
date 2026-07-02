@@ -46,8 +46,9 @@ export function SkeletonStatCard() {
 export function SkeletonTableRow() {
   return (
     <tr style={{ borderTop: '1px solid #1a1a1a' }}>
-      {[70, 130, 130, 60, 55].map((w, i) => (
-        <td key={i} style={{ padding: '11px 0', paddingRight: 12 }}>
+      {/* Match the 8 columns of AlertsPage: #, Type, Subtype, Source IP, Destination, Port·Proto, Confidence, Time */}
+      {[28, 80, 110, 120, 110, 90, 60, 100].map((w, i) => (
+        <td key={i} style={{ padding: '11px 0', paddingRight: i === 0 ? 0 : 12, paddingLeft: i === 0 ? 20 : 0 }}>
           <SkeletonBox width={w} height={12} radius={4} />
         </td>
       ))}

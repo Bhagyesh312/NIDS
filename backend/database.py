@@ -1,8 +1,7 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Load .env file
 load_dotenv()
@@ -13,7 +12,12 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:kali@localhost:5432/NIDS"
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,      # verify connection is alive before using it
+    pool_size=10,            # number of persistent connections
+    max_overflow=20,         # extra connections allowed above pool_size
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

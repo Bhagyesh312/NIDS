@@ -3,34 +3,59 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Download, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react'
 import Header from '../components/Header'
 import Badge from '../components/Badge'
-import { CATEGORY_COLORS, CATEGORIES } from '../lib/colors'
+import { getLabelColor, CATEGORIES, CICIDS_ATTACK_CATEGORIES } from '../lib/colors'
 import { SkeletonTableRow } from '../components/Skeleton'
 import { getAlerts } from '../lib/api'
 import { useMockMode } from '../lib/mockModeContext'
 import { useRefreshSettings } from '../lib/refreshContext'
+import { useModel } from '../lib/modelContext'
 
-// ── Mock fallback data (used when backend is offline) ─────────────────────────
-const MOCK_ALERTS = [
-  { id: 1,  type: 'DoS',    src: '192.168.1.104', dst: '10.0.0.1',   port: 80,   proto: 'tcp', conf: 98.2, time: '2025-06-13 14:02:11', subtype: 'neptune' },
-  { id: 2,  type: 'Probe',  src: '172.16.0.55',   dst: '10.0.0.5',   port: 22,   proto: 'tcp', conf: 94.7, time: '2025-06-13 13:58:44', subtype: 'portsweep' },
-  { id: 3,  type: 'R2L',    src: '203.0.113.42',  dst: '10.0.0.12',  port: 21,   proto: 'tcp', conf: 89.1, time: '2025-06-13 13:51:30', subtype: 'ftp_write' },
-  { id: 4,  type: 'DoS',    src: '198.51.100.23', dst: '10.0.0.1',   port: 80,   proto: 'tcp', conf: 97.5, time: '2025-06-13 13:45:09', subtype: 'smurf' },
-  { id: 5,  type: 'Probe',  src: '192.168.1.200', dst: '10.0.0.8',   port: 443,  proto: 'tcp', conf: 91.3, time: '2025-06-13 13:34:22', subtype: 'nmap' },
-  { id: 6,  type: 'U2R',    src: '10.0.0.99',     dst: '10.0.0.3',   port: 0,    proto: 'tcp', conf: 83.6, time: '2025-06-13 13:20:55', subtype: 'buffer_overflow' },
-  { id: 7,  type: 'DoS',    src: '10.10.1.88',    dst: '10.0.0.2',   port: 80,   proto: 'udp', conf: 96.1, time: '2025-06-13 13:15:03', subtype: 'back' },
-  { id: 8,  type: 'R2L',    src: '172.20.5.11',   dst: '10.0.0.6',   port: 143,  proto: 'tcp', conf: 87.4, time: '2025-06-13 13:08:17', subtype: 'imap' },
-  { id: 9,  type: 'Probe',  src: '10.0.3.77',     dst: '10.0.0.9',   port: 25,   proto: 'tcp', conf: 92.8, time: '2025-06-13 12:59:44', subtype: 'ipsweep' },
-  { id: 10, type: 'U2R',    src: '10.0.2.33',     dst: '10.0.0.9',   port: 0,    proto: 'tcp', conf: 81.2, time: '2025-06-13 12:44:31', subtype: 'rootkit' },
-  { id: 11, type: 'DoS',    src: '203.0.113.7',   dst: '10.0.0.1',   port: 80,   proto: 'icmp',conf: 99.1, time: '2025-06-13 12:33:19', subtype: 'teardrop' },
-  { id: 12, type: 'R2L',    src: '198.51.100.8',  dst: '10.0.0.14',  port: 161,  proto: 'udp', conf: 85.0, time: '2025-06-13 12:21:05', subtype: 'snmpguess' },
-  { id: 13, type: 'Probe',  src: '172.16.0.99',   dst: '10.0.0.7',   port: 53,   proto: 'udp', conf: 88.4, time: '2025-06-13 12:10:48', subtype: 'satan' },
-  { id: 14, type: 'DoS',    src: '10.5.0.11',     dst: '10.0.0.1',   port: 8080, proto: 'tcp', conf: 95.3, time: '2025-06-13 12:01:33', subtype: 'apache2' },
-  { id: 15, type: 'U2R',    src: '10.0.1.45',     dst: '10.0.0.5',   port: 0,    proto: 'tcp', conf: 79.8, time: '2025-06-13 11:55:12', subtype: 'perl' },
-  { id: 16, type: 'R2L',    src: '203.0.113.55',  dst: '10.0.0.11',  port: 21,   proto: 'tcp', conf: 91.7, time: '2025-06-13 11:44:09', subtype: 'guess_passwd' },
-  { id: 17, type: 'Probe',  src: '192.168.2.100', dst: '10.0.0.3',   port: 22,   proto: 'tcp', conf: 93.2, time: '2025-06-13 11:30:27', subtype: 'mscan' },
-  { id: 18, type: 'DoS',    src: '10.10.2.200',   dst: '10.0.0.2',   port: 80,   proto: 'tcp', conf: 97.8, time: '2025-06-13 11:18:55', subtype: 'neptune' },
-  { id: 19, type: 'R2L',    src: '172.16.1.33',   dst: '10.0.0.8',   port: 25,   proto: 'tcp', conf: 84.3, time: '2025-06-13 11:05:41', subtype: 'sendmail' },
-  { id: 20, type: 'U2R',    src: '10.0.0.77',     dst: '10.0.0.4',   port: 0,    proto: 'tcp', conf: 86.5, time: '2025-06-13 10:52:18', subtype: 'sqlattack' },
+// ── Mock fallback data — KDD ──────────────────────────────────────────────────
+const MOCK_ALERTS_KDD = [
+  { id: 1,  type: 'DoS',   src: '192.168.1.104', dst: '10.0.0.1',  port: 80,  proto: 'tcp',  conf: 98.2, time: '2025-06-13 14:02:11', subtype: 'neptune' },
+  { id: 2,  type: 'Probe', src: '172.16.0.55',   dst: '10.0.0.5',  port: 22,  proto: 'tcp',  conf: 94.7, time: '2025-06-13 13:58:44', subtype: 'portsweep' },
+  { id: 3,  type: 'R2L',   src: '203.0.113.42',  dst: '10.0.0.12', port: 21,  proto: 'tcp',  conf: 89.1, time: '2025-06-13 13:51:30', subtype: 'ftp_write' },
+  { id: 4,  type: 'DoS',   src: '198.51.100.23', dst: '10.0.0.1',  port: 80,  proto: 'tcp',  conf: 97.5, time: '2025-06-13 13:45:09', subtype: 'smurf' },
+  { id: 5,  type: 'Probe', src: '192.168.1.200', dst: '10.0.0.8',  port: 443, proto: 'tcp',  conf: 91.3, time: '2025-06-13 13:34:22', subtype: 'nmap' },
+  { id: 6,  type: 'U2R',   src: '10.0.0.99',     dst: '10.0.0.3',  port: 0,   proto: 'tcp',  conf: 83.6, time: '2025-06-13 13:20:55', subtype: 'buffer_overflow' },
+  { id: 7,  type: 'DoS',   src: '10.10.1.88',    dst: '10.0.0.2',  port: 80,  proto: 'udp',  conf: 96.1, time: '2025-06-13 13:15:03', subtype: 'back' },
+  { id: 8,  type: 'R2L',   src: '172.20.5.11',   dst: '10.0.0.6',  port: 143, proto: 'tcp',  conf: 87.4, time: '2025-06-13 13:08:17', subtype: 'imap' },
+  { id: 9,  type: 'Probe', src: '10.0.3.77',     dst: '10.0.0.9',  port: 25,  proto: 'tcp',  conf: 92.8, time: '2025-06-13 12:59:44', subtype: 'ipsweep' },
+  { id: 10, type: 'U2R',   src: '10.0.2.33',     dst: '10.0.0.9',  port: 0,   proto: 'tcp',  conf: 81.2, time: '2025-06-13 12:44:31', subtype: 'rootkit' },
+  { id: 11, type: 'DoS',   src: '203.0.113.7',   dst: '10.0.0.1',  port: 80,  proto: 'icmp', conf: 99.1, time: '2025-06-13 12:33:19', subtype: 'teardrop' },
+  { id: 12, type: 'R2L',   src: '198.51.100.8',  dst: '10.0.0.14', port: 161, proto: 'udp',  conf: 85.0, time: '2025-06-13 12:21:05', subtype: 'snmpguess' },
+  { id: 13, type: 'Probe', src: '172.16.0.99',   dst: '10.0.0.7',  port: 53,  proto: 'udp',  conf: 88.4, time: '2025-06-13 12:10:48', subtype: 'satan' },
+  { id: 14, type: 'DoS',   src: '10.5.0.11',     dst: '10.0.0.1',  port: 8080,proto: 'tcp',  conf: 95.3, time: '2025-06-13 12:01:33', subtype: 'apache2' },
+  { id: 15, type: 'U2R',   src: '10.0.1.45',     dst: '10.0.0.5',  port: 0,   proto: 'tcp',  conf: 79.8, time: '2025-06-13 11:55:12', subtype: 'perl' },
+  { id: 16, type: 'R2L',   src: '203.0.113.55',  dst: '10.0.0.11', port: 21,  proto: 'tcp',  conf: 91.7, time: '2025-06-13 11:44:09', subtype: 'guess_passwd' },
+  { id: 17, type: 'Probe', src: '192.168.2.100', dst: '10.0.0.3',  port: 22,  proto: 'tcp',  conf: 93.2, time: '2025-06-13 11:30:27', subtype: 'mscan' },
+  { id: 18, type: 'DoS',   src: '10.10.2.200',   dst: '10.0.0.2',  port: 80,  proto: 'tcp',  conf: 97.8, time: '2025-06-13 11:18:55', subtype: 'neptune' },
+  { id: 19, type: 'R2L',   src: '172.16.1.33',   dst: '10.0.0.8',  port: 25,  proto: 'tcp',  conf: 84.3, time: '2025-06-13 11:05:41', subtype: 'sendmail' },
+  { id: 20, type: 'U2R',   src: '10.0.0.77',     dst: '10.0.0.4',  port: 0,   proto: 'tcp',  conf: 86.5, time: '2025-06-13 10:52:18', subtype: 'sqlattack' },
+]
+
+// ── Mock fallback data — CICIDS2017 ───────────────────────────────────────────
+const MOCK_ALERTS_CICIDS = [
+  { id: 1,  type: 'DoS',        src: '192.168.1.104', dst: '10.0.0.1',  port: 80,  proto: 'tcp', conf: 99.1, time: '2025-06-13 14:02:11', subtype: 'Slowloris' },
+  { id: 2,  type: 'DDoS',       src: '172.16.0.55',   dst: '10.0.0.5',  port: 0,   proto: 'udp', conf: 98.4, time: '2025-06-13 13:58:44', subtype: 'LOIC UDP flood' },
+  { id: 3,  type: 'PortScan',   src: '203.0.113.42',  dst: '10.0.0.12', port: 0,   proto: 'tcp', conf: 96.7, time: '2025-06-13 13:51:30', subtype: 'nmap SYN scan' },
+  { id: 4,  type: 'BruteForce', src: '198.51.100.23', dst: '10.0.0.1',  port: 21,  proto: 'tcp', conf: 94.2, time: '2025-06-13 13:45:09', subtype: 'FTP-Patator' },
+  { id: 5,  type: 'BruteForce', src: '192.168.1.200', dst: '10.0.0.8',  port: 22,  proto: 'tcp', conf: 92.8, time: '2025-06-13 13:34:22', subtype: 'SSH-Hydra' },
+  { id: 6,  type: 'Bot',        src: '10.0.0.99',     dst: '185.0.0.1', port: 80,  proto: 'tcp', conf: 88.3, time: '2025-06-13 13:20:55', subtype: 'ARES C&C beacon' },
+  { id: 7,  type: 'DoS',        src: '10.10.1.88',    dst: '10.0.0.2',  port: 80,  proto: 'tcp', conf: 97.6, time: '2025-06-13 13:15:03', subtype: 'HULK' },
+  { id: 8,  type: 'DDoS',       src: '172.20.5.11',   dst: '10.0.0.6',  port: 0,   proto: 'tcp', conf: 99.3, time: '2025-06-13 13:08:17', subtype: 'LOIC TCP flood' },
+  { id: 9,  type: 'PortScan',   src: '10.0.3.77',     dst: '10.0.0.9',  port: 0,   proto: 'tcp', conf: 95.1, time: '2025-06-13 12:59:44', subtype: 'nmap aggressive' },
+  { id: 10, type: 'Infiltration',src:'10.0.2.33',      dst: '10.0.0.9',  port: 4444,proto: 'tcp', conf: 87.9, time: '2025-06-13 12:44:31', subtype: 'Meterpreter shell' },
+  { id: 11, type: 'DoS',        src: '203.0.113.7',   dst: '10.0.0.1',  port: 443, proto: 'tcp', conf: 98.6, time: '2025-06-13 12:33:19', subtype: 'GoldenEye' },
+  { id: 12, type: 'Bot',        src: '198.51.100.8',  dst: '10.0.0.14', port: 80,  proto: 'tcp', conf: 86.2, time: '2025-06-13 12:21:05', subtype: 'bot propagation' },
+  { id: 13, type: 'Web Attack \uFFFD Brute Force', src: '172.16.0.99', dst: '10.0.0.7', port: 80, proto: 'tcp', conf: 91.4, time: '2025-06-13 12:10:48', subtype: 'DVWA login brute' },
+  { id: 14, type: 'Web Attack \uFFFD Sql Injection', src: '10.5.0.11', dst: '10.0.0.1', port: 80, proto: 'tcp', conf: 93.7, time: '2025-06-13 12:01:33', subtype: 'UNION SELECT inject' },
+  { id: 15, type: 'Web Attack \uFFFD XSS', src: '10.0.1.45', dst: '10.0.0.5', port: 80, proto: 'tcp', conf: 89.5, time: '2025-06-13 11:55:12', subtype: 'stored XSS' },
+  { id: 16, type: 'DDoS',       src: '203.0.113.55',  dst: '10.0.0.11', port: 0,   proto: 'udp', conf: 97.1, time: '2025-06-13 11:44:09', subtype: 'UDP amplification' },
+  { id: 17, type: 'BruteForce', src: '192.168.2.100', dst: '10.0.0.3',  port: 22,  proto: 'tcp', conf: 90.8, time: '2025-06-13 11:30:27', subtype: 'SSH-Hydra' },
+  { id: 18, type: 'DoS',        src: '10.10.2.200',   dst: '10.0.0.2',  port: 80,  proto: 'tcp', conf: 96.4, time: '2025-06-13 11:18:55', subtype: 'SlowHTTPTest' },
+  { id: 19, type: 'Infiltration',src:'172.16.1.33',    dst: '10.0.0.8',  port: 8080,proto: 'tcp', conf: 85.7, time: '2025-06-13 11:05:41', subtype: 'Cool disk backdoor' },
+  { id: 20, type: 'PortScan',   src: '10.0.0.77',     dst: '10.0.0.4',  port: 0,   proto: 'tcp', conf: 94.3, time: '2025-06-13 10:52:18', subtype: 'UDP scan' },
 ]
 
 // Normalize backend response to match the table format
@@ -45,12 +70,11 @@ function normalizeAlert(a) {
     conf:    parseFloat((a.confidence * 100).toFixed(1)),
     time:    new Date(a.created_at).toLocaleString(),
     subtype: a.subtype  || a.prediction?.toLowerCase() || '—',
+    model:   a.model_used || 'kdd',
   }
 }
 
-const TYPE_FILTERS = ['All', ...CATEGORIES.filter(c => c !== 'Normal')]
-const SORT_FIELDS  = ['time', 'conf', 'type', 'src']
-const PAGE_SIZE    = 10
+const PAGE_SIZE = 10
 
 function SortIcon({ field, sortBy, sortDir }) {
   if (sortBy !== field) return <ChevronUp size={12} color="#333" />
@@ -62,7 +86,11 @@ function SortIcon({ field, sortBy, sortDir }) {
 export default function AlertsPage() {
   const { mockMode }                 = useMockMode()
   const { autoRefresh, refreshRate } = useRefreshSettings()
-  const [rawAlerts, setRawAlerts] = useState(MOCK_ALERTS)
+  const { activeModel }              = useModel()
+
+  const [rawAlerts, setRawAlerts] = useState(
+    () => activeModel === 'cicids' ? MOCK_ALERTS_CICIDS : MOCK_ALERTS_KDD
+  )
   const [search, setSearch]       = useState('')
   const [typeFilter, setFilter]   = useState('All')
   const [sortBy, setSortBy]       = useState('time')
@@ -70,27 +98,41 @@ export default function AlertsPage() {
   const [page, setPage]           = useState(1)
   const [loading, setLoading]     = useState(true)
 
+  // Dynamic filter list based on active model
+  const TYPE_FILTERS = useMemo(() => {
+    const attackCats = activeModel === 'cicids'
+      ? CICIDS_ATTACK_CATEGORIES
+      : CATEGORIES.filter(c => c !== 'Normal')
+    return ['All', ...attackCats]
+  }, [activeModel])
+
   useEffect(() => { document.title = 'NIDS · Alerts' }, [])
+
+  // Reset filter to All when model switches
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setFilter('All'); setPage(1) }, [activeModel])
 
   const fetchAlerts = useCallback(async () => {
     if (mockMode) {
-      setRawAlerts(MOCK_ALERTS)
+      // Use model-specific mock data immediately
+      setRawAlerts(activeModel === 'cicids' ? MOCK_ALERTS_CICIDS : MOCK_ALERTS_KDD)
       setLoading(false)
       return
     }
     setLoading(true)
     try {
-      const res = await getAlerts({ limit: 100 })
+      const res = await getAlerts({ limit: 100, model: activeModel })
       if (res.data?.length) setRawAlerts(res.data.map(normalizeAlert))
-      else setRawAlerts(MOCK_ALERTS)
+      else setRawAlerts(activeModel === 'cicids' ? MOCK_ALERTS_CICIDS : MOCK_ALERTS_KDD)
     } catch {
-      setRawAlerts(MOCK_ALERTS)
+      setRawAlerts(activeModel === 'cicids' ? MOCK_ALERTS_CICIDS : MOCK_ALERTS_KDD)
     } finally {
       setLoading(false)
     }
-  }, [mockMode])
+  }, [mockMode, activeModel])
 
   // Fetch on mount and when mock mode changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchAlerts() }, [fetchAlerts])
 
   // Auto-refresh using settings-controlled interval
@@ -126,7 +168,7 @@ export default function AlertsPage() {
       return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
     })
     return data
-  }, [search, typeFilter, sortBy, sortDir])
+  }, [search, typeFilter, sortBy, sortDir, rawAlerts])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -174,19 +216,19 @@ export default function AlertsPage() {
         </div>
 
         {/* Type filter pills */}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {TYPE_FILTERS.map(f => (
             <motion.button key={f} whileTap={{ scale: 0.95 }}
               onClick={() => { setFilter(f); setPage(1) }}
               style={{
-                background: typeFilter === f ? (f === 'All' ? 'var(--surface3)' : `${CATEGORY_COLORS[f]}18`) : 'transparent',
-                border: `1px solid ${typeFilter === f ? (f === 'All' ? 'var(--border2)' : CATEGORY_COLORS[f] + '40') : 'var(--border2)'}`,
+                background: typeFilter === f ? (f === 'All' ? 'var(--surface3)' : `${getLabelColor(f)}18`) : 'transparent',
+                border: `1px solid ${typeFilter === f ? (f === 'All' ? 'var(--border2)' : getLabelColor(f) + '40') : 'var(--border2)'}`,
                 borderRadius: 5, padding: '5px 11px',
-                color: typeFilter === f ? (f === 'All' ? 'var(--text-strong)' : CATEGORY_COLORS[f]) : 'var(--text-soft)',
+                color: typeFilter === f ? (f === 'All' ? 'var(--text-strong)' : getLabelColor(f)) : 'var(--text-soft)',
                 fontSize: 11, fontWeight: typeFilter === f ? 600 : 400, cursor: 'pointer',
-                transition: 'all 0.15s',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
               }}
-            >{f}</motion.button>
+            >{f.replace('Web Attack \uFFFD ', 'Web/')}</motion.button>
           ))}
         </div>
 
@@ -253,7 +295,7 @@ export default function AlertsPage() {
                         <td style={{ padding: '10px 12px 10px 0' }}>
                           <span style={{
                             fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
-                            color: a.conf >= 95 ? CATEGORY_COLORS.DoS : a.conf >= 88 ? CATEGORY_COLORS.R2L : '#ccc'
+                            color: a.conf >= 95 ? '#ef4444' : a.conf >= 88 ? '#f59e0b' : '#ccc'
                           }}>{a.conf.toFixed(1)}%</span>
                         </td>
                         <td style={{ padding: '10px 20px 10px 0', fontSize: 11, color: '#444', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{a.time}</td>

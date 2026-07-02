@@ -1,18 +1,26 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, Download, Loader, FileText } from 'lucide-react'
+import { Upload, Download, Loader, FileText, Database } from 'lucide-react'
 import Badge from '../components/Badge'
-import { CATEGORY_COLORS, CATEGORIES } from '../lib/colors'
+import { getLabelColor } from '../lib/colors'
 import { batchPredict } from '../lib/api'
+import { useModel } from '../lib/modelContext'
 
 export default function Batch() {
   useEffect(() => { document.title = 'NIDS · Batch Predict' }, [])
+
+  const { activeModel }         = useModel()
   const [file, setFile]         = useState(null)
   const [results, setResults]   = useState(null)
+  const [batchMeta, setBatchMeta] = useState(null)   // {batch_id, total, attacks, breakdown}
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef()
+
+  // Reset results when model changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setResults(null); setBatchMeta(null); setError(null) }, [activeModel])
 
   const handleFile = (f) => {
     if (f?.name.endsWith('.csv')) { setFile(f); setError(null) }
@@ -21,14 +29,45 @@ export default function Batch() {
 
   const handleSubmit = async () => {
     if (!file) return
-    setLoading(true); setError(null); setResults(null)
+    setLoading(true); setError(null); setResults(null); setBatchMeta(null)
+
+    // Client-side column count hint (reads only the header row)
+    try {
+      const text  = await file.slice(0, 4096).text()
+      const header = text.split('\n')[0]
+      const cols   = header.split(',').length
+      const expected = activeModel === 'cicids' ? 69 : 40
+      if (cols < expected) {
+        setError(
+          `CSV has ${cols} column(s) but the ${activeModel === 'cicids' ? 'CICIDS2017' : 'NSL-KDD'} ` +
+          `model expects at least ${expected}. Please upload the correct file.`
+        )
+        setLoading(false)
+        return
+      }
+    } catch {
+      // Header check failed — let the server validate
+    }
+
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const res = await batchPredict(fd)
+      const res = await batchPredict(fd, activeModel)
       setResults(res.data.results)
-    } catch {
-      setError('Backend not connected. Start the FastAPI server.')
+      setBatchMeta({
+        batch_id:  res.data.batch_id,
+        total:     res.data.total,
+        attacks:   res.data.attacks,
+        breakdown: res.data.breakdown,
+        model:     res.data.model_used || activeModel,
+      })
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      if (typeof detail === 'object' && detail?.error) {
+        setError(`${detail.error}. ${detail.hint || ''}`)
+      } else {
+        setError('Backend not connected. Start the FastAPI server.')
+      }
     } finally {
       setLoading(false)
     }
@@ -36,21 +75,27 @@ export default function Batch() {
 
   const downloadCSV = () => {
     const header = 'index,prediction,confidence\n'
-    const rows = results.map((r, i) => `${i+1},${r.prediction},${(r.confidence*100).toFixed(1)}%`).join('\n')
+    const rows = results.map((r, i) =>
+      `${i + 1},${r.prediction},${(r.confidence * 100).toFixed(1)}%`
+    ).join('\n')
     const blob = new Blob([header + rows], { type: 'text/csv' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-    a.download = 'nids_predictions.csv'; a.click()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `nids_${activeModel}_predictions.csv`
+    a.click()
   }
 
-  // Count per category
+  // Build category counts from the actual results so CICIDS labels are shown
+  const normalLabel   = activeModel === 'cicids' ? 'Benign' : 'Normal'
+
   const categoryCounts = results
-    ? CATEGORIES.reduce((acc, cat) => {
+    ? [...new Set(results.map(r => r.prediction))].reduce((acc, cat) => {
         acc[cat] = results.filter(r => r.prediction === cat).length
         return acc
       }, {})
     : null
 
-  const attacks = results?.filter(r => r.prediction !== 'Normal').length || 0
+  const attacks = results?.filter(r => r.prediction !== normalLabel).length || 0
 
   const card = { background: '#161616', border: '1px solid #1f1f1f', borderRadius: 8, padding: '18px 20px' }
 
@@ -58,8 +103,26 @@ export default function Batch() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
 
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#f0f0f0' }}>Batch Predict</h1>
-        <p style={{ color: '#555', fontSize: 13, marginTop: 3 }}>Upload a CSV file to classify multiple network flows at once</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: '#f0f0f0' }}>Batch Predict</h1>
+          <span style={{
+            fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
+            background: activeModel === 'cicids' ? 'rgba(167,139,250,0.15)' : 'rgba(59,130,246,0.15)',
+            color:      activeModel === 'cicids' ? '#a78bfa' : '#3b82f6',
+            border:     `1px solid ${activeModel === 'cicids' ? '#a78bfa30' : '#3b82f630'}`,
+          }}>
+            <Database size={9} style={{ display: 'inline', marginRight: 4 }} />
+            {activeModel === 'cicids' ? 'CICIDS2017' : 'NSL-KDD'}
+          </span>
+        </div>
+        <p style={{ color: '#555', fontSize: 13, marginTop: 3 }}>
+          Upload a CSV file to classify multiple network flows at once
+          {activeModel === 'cicids' && (
+            <span style={{ color: '#a78bfa', marginLeft: 6 }}>
+              · expects {69} CICIDS2017 feature columns
+            </span>
+          )}
+        </p>
       </div>
 
       {/* Upload area */}
@@ -83,7 +146,11 @@ export default function Batch() {
         ) : (
           <>
             <p style={{ color: '#888', fontSize: 13 }}>Drop your CSV here or click to browse</p>
-            <p style={{ color: '#444', fontSize: 11, marginTop: 5 }}>Must have the same columns as KDD dataset</p>
+            <p style={{ color: '#444', fontSize: 11, marginTop: 5 }}>
+              {activeModel === 'cicids'
+                ? 'Must have CICIDS2017 feature columns (69 features)'
+                : 'Must have the same columns as NSL-KDD dataset (40 features)'}
+            </p>
           </>
         )}
       </div>
@@ -102,7 +169,9 @@ export default function Batch() {
             opacity: loading ? 0.7 : 1, marginBottom: 16,
             fontFamily: 'Inter, sans-serif', transition: 'background 0.15s',
           }}>
-          {loading ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={15} />}
+          {loading
+            ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} />
+            : <FileText size={15} />}
           {loading ? 'Processing...' : 'Run Predictions'}
         </motion.button>
       )}
@@ -113,12 +182,22 @@ export default function Batch() {
           <motion.div key="results" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-            {/* Category summary pills */}
+            {/* Batch metadata + summary pills */}
             <motion.div style={{ ...card, padding: '14px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#ccc' }}>
-                  Results — <span style={{ color: CATEGORY_COLORS.DoS }}>{attacks} attacks</span> out of <span style={{ color: '#ccc' }}>{results.length}</span> flows
-                </span>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#ccc' }}>
+                    Results —{' '}
+                    <span style={{ color: '#ef4444' }}>{attacks} attacks</span>
+                    {' '}out of{' '}
+                    <span style={{ color: '#ccc' }}>{results.length}</span> flows
+                  </span>
+                  {batchMeta && (
+                    <span style={{ fontSize: 10, color: '#444', marginLeft: 10, fontFamily: 'monospace' }}>
+                      Batch #{batchMeta.batch_id} · {batchMeta.model?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
                 <motion.button
                   whileHover={{ borderColor: '#3b82f6', color: '#3b82f6' }}
                   whileTap={{ scale: 0.95 }}
@@ -134,32 +213,35 @@ export default function Batch() {
                 </motion.button>
               </div>
 
-              {/* Category breakdown pills */}
+              {/* Category breakdown pills — dynamic, works for both KDD and CICIDS */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {CATEGORIES.map((cat, i) => {
-                  const count = categoryCounts[cat] || 0
-                  if (count === 0) return null
-                  const pct = ((count / results.length) * 100).toFixed(1)
-                  return (
-                    <motion.div
-                      key={cat}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.06 }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        background: `${CATEGORY_COLORS[cat]}10`,
-                        border: `1px solid ${CATEGORY_COLORS[cat]}30`,
-                        borderRadius: 8, padding: '8px 14px',
-                      }}
-                    >
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: CATEGORY_COLORS[cat], flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: '#888' }}>{cat}</span>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: CATEGORY_COLORS[cat], fontVariantNumeric: 'tabular-nums' }}>{count}</span>
-                      <span style={{ fontSize: 10, color: '#444' }}>{pct}%</span>
-                    </motion.div>
-                  )
-                })}
+                {Object.entries(categoryCounts || {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([cat, count], i) => {
+                    const color = getLabelColor(cat)
+                    const pct   = ((count / results.length) * 100).toFixed(1)
+                    return (
+                      <motion.div
+                        key={cat}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.05 }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          background: `${color}10`,
+                          border: `1px solid ${color}30`,
+                          borderRadius: 8, padding: '8px 14px',
+                        }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#888' }}>
+                          {cat.replace('Web Attack \uFFFD ', 'Web/')}
+                        </span>
+                        <span style={{ fontSize: 16, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
+                        <span style={{ fontSize: 10, color: '#444' }}>{pct}%</span>
+                      </motion.div>
+                    )
+                  })}
               </div>
             </motion.div>
 
@@ -179,7 +261,7 @@ export default function Batch() {
                       key={i}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.02 }}
+                      transition={{ delay: i * 0.015 }}
                       style={{ borderTop: '1px solid #1a1a1a' }}
                     >
                       <td style={{ padding: '9px 16px', color: '#333', fontSize: 12 }}>{i + 1}</td>

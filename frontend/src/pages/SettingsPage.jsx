@@ -2,14 +2,16 @@ import { useEffect, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sun, Moon, Bell, Shield, Database,
-  Monitor, Check, RefreshCw, Wifi, WifiOff
+  Monitor, Check, RefreshCw, Wifi, WifiOff, Cpu
 } from 'lucide-react'
 import Header from '../components/Header'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
 import { useTheme } from '../lib/themeContext.jsx'
 import { useRefreshSettings } from '../lib/refreshContext.jsx'
-import { checkHealth } from '../lib/api'
+import { useModel } from '../lib/modelContext.jsx'
+import { useMockMode } from '../lib/mockModeContext.jsx'
+import { checkHealth, getModels } from '../lib/api'
 
 const fadeUp = (delay = 0, ready = true) => ({
   initial: { opacity: 0, y: 14 },
@@ -120,29 +122,54 @@ export default function SettingsPage() {
   const { theme, setTheme }               = useTheme()
   const { autoRefresh, refreshRate,
           setAutoRefresh, setRefreshRate } = useRefreshSettings()
+  const { activeModel, setActiveModel }   = useModel()
+  const { mockMode, setMockMode }         = useMockMode()
 
   useEffect(() => { document.title = 'NIDS · Settings' }, [])
 
-  const [notifications, setNotif]     = useState(true)
-  const [alertSound,    setAlertSound] = useState(false)
-  const [feedVisible,   setFeedVisible]= useState(true)
-  const [highOnly,      setHighOnly]   = useState(false)
+  const [notifications, setNotif]     = useState(
+    () => localStorage.getItem('nids-notif') !== 'false'
+  )
+  const [alertSound,    setAlertSound] = useState(
+    () => localStorage.getItem('nids-alert-sound') === 'true'
+  )
+  const [feedVisible,   setFeedVisible]= useState(
+    () => localStorage.getItem('nids-feed-visible') !== 'false'
+  )
+  const [highOnly,      setHighOnly]   = useState(
+    () => localStorage.getItem('nids-high-only') === 'true'
+  )
   const [apiEndpoint,   setApiEndpoint]= useState(
     () => localStorage.getItem('nids-api-endpoint') || 'http://localhost:8000'
   )
-  const [saved,      setSaved]      = useState(false)
-  const [connStatus, setConnStatus] = useState('checking')
+  const [saved,        setSaved]       = useState(false)
+  const [connStatus,   setConnStatus]  = useState('checking')
+  const [modelStatus,  setModelStatus] = useState(null)   // {kdd: bool, cicids: bool}
 
   const checkConnection = useCallback(async () => {
     setConnStatus('checking')
-    try { await checkHealth(); setConnStatus('connected') }
-    catch { setConnStatus('disconnected') }
+    try {
+      await checkHealth()
+      setConnStatus('connected')
+      // Also fetch which models are loaded
+      try {
+        const res = await getModels()
+        setModelStatus(res.data?.available || null)
+      } catch { /* model status optional */ }
+    } catch {
+      setConnStatus('disconnected')
+    }
   }, [])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { checkConnection() }, [checkConnection])
 
   const handleSave = () => {
-    localStorage.setItem('nids-api-endpoint', apiEndpoint)
+    localStorage.setItem('nids-api-endpoint',  apiEndpoint)
+    localStorage.setItem('nids-notif',         String(notifications))
+    localStorage.setItem('nids-alert-sound',   String(alertSound))
+    localStorage.setItem('nids-feed-visible',  String(feedVisible))
+    localStorage.setItem('nids-high-only',     String(highOnly))
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     checkConnection()
@@ -153,9 +180,15 @@ export default function SettingsPage() {
     setNotif(true); setAlertSound(false)
     setAutoRefresh(true); setRefreshRate('30')
     setFeedVisible(true); setHighOnly(false)
+    setActiveModel('kdd')
+    setMockMode(true)
     const def = 'http://localhost:8000'
     setApiEndpoint(def)
     localStorage.setItem('nids-api-endpoint', def)
+    localStorage.setItem('nids-notif',        'true')
+    localStorage.setItem('nids-alert-sound',  'false')
+    localStorage.setItem('nids-feed-visible', 'true')
+    localStorage.setItem('nids-high-only',    'false')
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     checkConnection()
@@ -231,8 +264,78 @@ export default function SettingsPage() {
           </SettingRow>
         </Section>
 
+        {/* ML Model */}
+        <Section title="ML Model" icon={Cpu} color="#a78bfa" delay={0.30} ready={ready}>
+          <SettingRow
+            label="Active model"
+            desc="Which trained model to use for predictions and batch analysis"
+          >
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { id: 'kdd',    label: 'NSL-KDD',     sub: '5 classes · 40 features'  },
+                { id: 'cicids', label: 'CICIDS2017',   sub: '10 classes · 69 features' },
+              ].map(m => {
+                const isActive = activeModel === m.id
+                const loaded   = modelStatus ? modelStatus[m.id] : null
+                return (
+                  <motion.button key={m.id} whileTap={{ scale: 0.96 }}
+                    onClick={() => setActiveModel(m.id)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                      padding: '10px 16px', borderRadius: 8, cursor: 'pointer',
+                      background: isActive ? 'rgba(167,139,250,0.1)' : 'transparent',
+                      border: `1px solid ${isActive ? '#a78bfa' : '#2a2a2a'}`,
+                      color: isActive ? '#a78bfa' : '#555',
+                      transition: 'all 0.15s', minWidth: 130,
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                      <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 400 }}>{m.label}</span>
+                      {loaded !== null && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700,
+                          background: loaded ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: loaded ? '#22c55e' : '#ef4444',
+                          borderRadius: 3, padding: '1px 5px',
+                        }}>
+                          {loaded ? 'LOADED' : 'NOT LOADED'}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 10, color: '#444' }}>{m.sub}</span>
+                  </motion.button>
+                )
+              })}
+            </div>
+          </SettingRow>
+          <SettingRow
+            label="Model scope"
+            desc="Predictions, batch uploads, and model info will all use the active model"
+          >
+            <span style={{ fontSize: 12, color: '#555' }}>
+              Currently: <span style={{ color: '#a78bfa', fontWeight: 600 }}>
+                {activeModel === 'kdd' ? 'NSL-KDD' : 'CICIDS2017'}
+              </span>
+            </span>
+          </SettingRow>
+        </Section>
+
         {/* API */}
         <Section title="Backend API" icon={Shield} color={CATEGORY_COLORS.U2R} delay={0.34} ready={ready}>
+          {/* Demo / API mode toggle */}
+          <SettingRow
+            label="Data mode"
+            desc="Demo uses local mock data. API mode connects to the FastAPI backend for live predictions."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: mockMode ? '#EF9F27' : '#555' }}>Demo</span>
+              <Toggle
+                value={!mockMode}
+                onChange={(val) => setMockMode(!val)}
+                color={CATEGORY_COLORS.Normal}
+              />
+              <span style={{ fontSize: 12, color: !mockMode ? CATEGORY_COLORS.Normal : '#555' }}>API</span>
+            </div>
+          </SettingRow>
           <SettingRow label="API endpoint" desc="FastAPI server URL for predictions and stats">
             <input
               value={apiEndpoint}

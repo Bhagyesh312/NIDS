@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck, LayoutDashboard, Bell, Upload,
-  FileText, Settings, BookOpen, Globe, Menu, X, Crosshair
+  FileText, Settings, BookOpen, Globe, Menu, X, Crosshair, Cpu
 } from 'lucide-react'
 import { CATEGORY_COLORS } from '../lib/colors'
 import { useReady } from '../lib/readyContext'
@@ -51,10 +51,12 @@ export default function FlowingMenu() {
     { to: '/predict',  label: 'Predict',     icon: Crosshair,       color: CATEGORY_COLORS.U2R     },
     { to: '/batch',    label: 'Upload CSV',  icon: Upload,          color: CATEGORY_COLORS.R2L     },
     { to: '/reports',  label: 'Reports',     icon: FileText,        color: '#3b82f6'               },
+    { to: '/model',    label: 'Model Info',  icon: Cpu,             color: '#a78bfa'               },
     { to: '/settings', label: 'Settings',    icon: Settings,        color: '#666'                  },
   ]
 
   // Close on route change
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false) }, [location.pathname])
 
   // Lock body scroll when open

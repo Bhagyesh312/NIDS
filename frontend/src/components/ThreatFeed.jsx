@@ -1,38 +1,57 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Terminal, Pause, Play } from 'lucide-react'
-import { CATEGORY_COLORS, CATEGORY_BG } from '../lib/colors'
+import { CATEGORY_COLORS, getLabelColor } from '../lib/colors'
 import { useMockMode } from '../lib/mockModeContext'
 import { useRefreshSettings } from '../lib/refreshContext'
+import { useModel } from '../lib/modelContext'
 import { getAlerts } from '../lib/api'
 
-// ── Mock generator (used in demo mode) ───────────────────────
-const ATTACK_TYPES = ['DoS', 'Probe', 'R2L', 'U2R']
-const SUBTYPES = {
+// ── KDD mock data ─────────────────────────────────────────────
+const KDD_ATTACKS   = ['DoS', 'Probe', 'R2L', 'U2R']
+const KDD_SUBTYPES  = {
   DoS:   ['neptune flood', 'smurf attack', 'back overflow', 'teardrop frag', 'apache2 exploit'],
   Probe: ['portsweep', 'nmap scan', 'ipsweep', 'satan probe', 'mscan'],
   R2L:   ['guess_passwd', 'ftp_write', 'imap exploit', 'snmpguess', 'warezmaster'],
   U2R:   ['buffer_overflow', 'rootkit install', 'perl exploit', 'sqlattack', 'xterm hijack'],
 }
+
+// ── CICIDS mock data ──────────────────────────────────────────
+const CICIDS_ATTACKS  = ['DoS', 'DDoS', 'PortScan', 'BruteForce', 'Bot', 'Infiltration']
+const CICIDS_SUBTYPES = {
+  DoS:         ['slowloris', 'hulk', 'goldeneye', 'slowhttptest'],
+  DDoS:        ['LOIT flood', 'UDP amplification', 'SYN flood'],
+  PortScan:    ['stealth scan', 'aggressive scan', 'service version detect'],
+  BruteForce:  ['FTP brute force', 'SSH brute force', 'HTTP brute force'],
+  Bot:         ['C&C beacon', 'data exfil', 'bot propagation'],
+  Infiltration: ['Cool disk infiltration', 'lateral movement'],
+}
+
 const PORTS  = [80, 443, 22, 21, 25, 53, 3306, 8080, 8443, 3389]
-const NORMAL = ['HTTP request', 'DNS query', 'HTTPS handshake', 'TCP established', 'ICMP ping']
+const NORMAL_MSGS = ['HTTP request', 'DNS query', 'HTTPS handshake', 'TCP established', 'ICMP ping']
 
 function randIP() { return `${rand(1,254)}.${rand(0,255)}.${rand(0,255)}.${rand(1,254)}` }
 function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a }
 
-function genMockEntry() {
-  const isAttack = Math.random() < 0.35
+function genMockEntry(model = 'kdd') {
+  const isAttack = Math.random() < 0.38
   const ts = new Date().toTimeString().split(' ')[0]
+
   if (!isAttack) {
     return {
       id: Date.now() + Math.random(), ts,
-      type: 'normal', label: 'OK',
-      msg: `${NORMAL[rand(0, NORMAL.length - 1)]} — ${randIP()} → 10.0.0.${rand(1,20)}:${PORTS[rand(0,PORTS.length - 1)]}`,
+      type: 'normal', label: model === 'cicids' ? 'BENIGN' : 'OK',
+      msg: `${NORMAL_MSGS[rand(0, NORMAL_MSGS.length - 1)]} — ${randIP()} → 10.0.0.${rand(1,20)}:${PORTS[rand(0,PORTS.length - 1)]}`,
     }
   }
-  const attack = ATTACK_TYPES[rand(0, ATTACK_TYPES.length - 1)]
-  const sub    = SUBTYPES[attack][rand(0, SUBTYPES[attack].length - 1)]
-  const conf   = (rand(820, 999) / 10).toFixed(1)
+
+  const attacks  = model === 'cicids' ? CICIDS_ATTACKS  : KDD_ATTACKS
+  const subtypes = model === 'cicids' ? CICIDS_SUBTYPES : KDD_SUBTYPES
+  const attack   = attacks[rand(0, attacks.length - 1)]
+  const subs     = subtypes[attack] || ['unknown attack']
+  const sub      = subs[rand(0, subs.length - 1)]
+  const conf     = (rand(820, 999) / 10).toFixed(1)
+
   return {
     id: Date.now() + Math.random(), ts,
     type: 'attack', attack, label: attack,
@@ -42,51 +61,47 @@ function genMockEntry() {
 
 // Convert a DB alert row into a feed entry
 function alertToEntry(a) {
-  const isAttack = a.prediction !== 'Normal'
-  const ts = new Date(a.created_at).toTimeString().split(' ')[0]
+  const normalLabels = ['Normal', 'Benign']
+  const isAttack     = !normalLabels.includes(a.prediction)
+  const ts           = new Date(a.created_at).toTimeString().split(' ')[0]
   return {
-    id:     a.id + '-' + a.created_at,
+    id:     String(a.id) + '-' + a.created_at,
     ts,
     type:   isAttack ? 'attack' : 'normal',
     attack: isAttack ? a.prediction : undefined,
-    label:  isAttack ? a.prediction : 'OK',
-    msg: isAttack
+    label:  isAttack ? a.prediction : (a.model_used === 'cicids' ? 'BENIGN' : 'OK'),
+    msg:    isAttack
       ? `${a.prediction.toLowerCase()} detected — ${a.src_ip || '?.?.?.?'} → ${a.dst_ip || '—'}  conf:${(a.confidence * 100).toFixed(1)}%`
       : `normal traffic — ${a.src_ip || '—'} → ${a.dst_ip || '—'}  conf:${(a.confidence * 100).toFixed(1)}%`,
   }
 }
 
-const LABEL_COLORS = {
-  DoS:    CATEGORY_COLORS.DoS,
-  Probe:  CATEGORY_COLORS.Probe,
-  R2L:    CATEGORY_COLORS.R2L,
-  U2R:    CATEGORY_COLORS.U2R,
-  normal: CATEGORY_COLORS.Normal,
-}
-
 export default function ThreatFeed({ open }) {
-  const { mockMode }                      = useMockMode()
-  const { autoRefresh, refreshRate }      = useRefreshSettings()
-  const [entries, setEntries]             = useState([])
-  const [paused, setPaused]               = useState(false)
-  const [attackFlash, setAttackFlash]     = useState(false)
-  const bottomRef                         = useRef(null)
-  const pausedRef                         = useRef(false)
-  const prevAttackCount                   = useRef(0)
-  const seenIdsRef                        = useRef(new Set())
+  const { mockMode }                 = useMockMode()
+  const { autoRefresh, refreshRate } = useRefreshSettings()
+  const { activeModel }              = useModel()
 
-  pausedRef.current = paused
+  const [entries, setEntries]         = useState([])
+  const [paused, setPaused]           = useState(false)
+  const [attackFlash, setAttackFlash] = useState(false)
+  const bottomRef                     = useRef(null)
+  const pausedRef                     = useRef(false)
+  const prevAttackCount               = useRef(0)
+  const seenIdsRef                    = useRef(new Set())
 
-  // ── Seed entries on open ────────────────────────────────────
+  pausedRef.current = paused  // eslint-disable-line react-hooks/refs
+
+  // ── Seed entries on open or model change ─────────────────────
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEntries([])
+    seenIdsRef.current.clear()
+
     if (mockMode) {
-      const seed = Array.from({ length: 12 }, () => genMockEntry())
-      setEntries(seed)
-      seenIdsRef.current.clear()
+      setEntries(Array.from({ length: 12 }, () => genMockEntry(activeModel)))
     } else {
-      // Fetch the latest 40 predictions to seed the feed
-      getAlerts({ limit: 40 })
+      getAlerts({ limit: 40, model: activeModel })
         .then(res => {
           if (res.data?.length) {
             const mapped = [...res.data].reverse().map(alertToEntry)
@@ -95,30 +110,29 @@ export default function ThreatFeed({ open }) {
           }
         })
         .catch(() => {
-          const seed = Array.from({ length: 12 }, () => genMockEntry())
-          setEntries(seed)
+          setEntries(Array.from({ length: 12 }, () => genMockEntry(activeModel)))
         })
     }
-  }, [open, mockMode])
+  }, [open, mockMode, activeModel])
 
-  // ── Mock mode: random ticker ────────────────────────────────
+  // ── Demo mode: random ticker ──────────────────────────────────
   useEffect(() => {
     if (!open || !mockMode) return
+    let timer
     const tick = () => {
       if (!pausedRef.current) {
-        setEntries(prev => [...prev, genMockEntry()].slice(-80))
+        setEntries(prev => [...prev, genMockEntry(activeModel)].slice(-80))
       }
-      timer = setTimeout(tick, rand(600, 2200))
+      timer = setTimeout(tick, rand(700, 2000))
     }
-    let timer = setTimeout(tick, rand(600, 2200))
+    timer = setTimeout(tick, rand(700, 2000))
     return () => clearTimeout(timer)
-  }, [open, mockMode])
+  }, [open, mockMode, activeModel])
 
-  // ── API mode: poll /alerts/all for new rows ─────────────────
+  // ── API mode: poll for new rows ───────────────────────────────
   const fetchNew = useCallback(() => {
     if (pausedRef.current || mockMode) return
-    // GET /alerts/all returns all predictions including normal, newest first
-    getAlerts({ limit: 20 })
+    getAlerts({ limit: 20, model: activeModel })
       .then(res => {
         if (!res.data?.length) return
         const fresh = res.data
@@ -130,7 +144,7 @@ export default function ThreatFeed({ open }) {
         }
       })
       .catch(() => {})
-  }, [mockMode])
+  }, [mockMode, activeModel])
 
   useEffect(() => {
     if (!open || mockMode || !autoRefresh) return
@@ -139,12 +153,12 @@ export default function ThreatFeed({ open }) {
     return () => clearInterval(id)
   }, [open, mockMode, autoRefresh, refreshRate, fetchNew])
 
-  // ── Auto-scroll ─────────────────────────────────────────────
+  // ── Auto-scroll ───────────────────────────────────────────────
   useEffect(() => {
     if (!paused) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [entries, paused])
 
-  // ── Attack flash on new threat ──────────────────────────────
+  // ── Flash on new attack ───────────────────────────────────────
   const attackCount = entries.filter(e => e.type === 'attack').length
   useEffect(() => {
     if (attackCount > prevAttackCount.current) {
@@ -155,6 +169,8 @@ export default function ThreatFeed({ open }) {
   }, [attackCount])
 
   if (!open) return null
+
+  const modelLabel = activeModel === 'cicids' ? 'CICIDS2017' : 'NSL-KDD'
 
   return (
     <motion.div
@@ -186,6 +202,14 @@ export default function ThreatFeed({ open }) {
         </div>
         <Terminal size={11} color="#444" style={{ marginLeft: 4 }} />
         <span style={{ fontSize: 11, color: '#444', flex: 1 }}>nids — threat-feed</span>
+        {/* Model badge */}
+        <span style={{
+          fontSize: 9, fontWeight: 700, borderRadius: 3, padding: '1px 5px',
+          background: activeModel === 'cicids' ? 'rgba(167,139,250,0.15)' : 'rgba(59,130,246,0.15)',
+          color:      activeModel === 'cicids' ? '#a78bfa' : '#3b82f6',
+        }}>
+          {modelLabel}
+        </span>
         <motion.span
           key={attackCount}
           animate={attackFlash ? { scale: [1, 1.3, 1], opacity: [1, 0.5, 1] } : {}}
@@ -206,35 +230,39 @@ export default function ThreatFeed({ open }) {
         scrollbarWidth: 'thin', scrollbarColor: '#1a1a1a transparent',
       }}>
         <AnimatePresence initial={false}>
-          {entries.map((e) => (
-            <motion.div
-              key={e.id}
-              initial={{ opacity: 0, x: -6 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                display: 'flex', alignItems: 'baseline', gap: 8,
-                padding: '2px 12px',
-                background: e.type === 'attack' ? `${CATEGORY_COLORS[e.attack]}08` : 'transparent',
-              }}
-            >
-              <span style={{ fontSize: 10, color: '#2a2a2a', flexShrink: 0, userSelect: 'none' }}>{e.ts}</span>
-              <span style={{
-                fontSize: 9, fontWeight: 700,
-                color: LABEL_COLORS[e.type === 'normal' ? 'normal' : e.attack],
-                width: 42, flexShrink: 0, textTransform: 'uppercase',
-              }}>
-                {e.label}
-              </span>
-              <span style={{
-                fontSize: 11,
-                color: e.type === 'attack' ? LABEL_COLORS[e.attack] : '#2a3a2a',
-                lineHeight: 1.6, wordBreak: 'break-all',
-              }}>
-                {e.msg}
-              </span>
-            </motion.div>
-          ))}
+          {entries.map((e) => {
+            const attackColor = e.type === 'attack' ? getLabelColor(e.attack) : CATEGORY_COLORS.Normal
+            return (
+              <motion.div
+                key={e.id}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  display: 'flex', alignItems: 'baseline', gap: 8,
+                  padding: '2px 12px',
+                  background: e.type === 'attack' ? `${attackColor}08` : 'transparent',
+                }}
+              >
+                <span style={{ fontSize: 10, color: '#2a2a2a', flexShrink: 0, userSelect: 'none' }}>{e.ts}</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  color: e.type === 'normal' ? CATEGORY_COLORS.Normal : attackColor,
+                  width: 52, flexShrink: 0, textTransform: 'uppercase',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {e.label}
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  color: e.type === 'attack' ? attackColor : '#2a3a2a',
+                  lineHeight: 1.6, wordBreak: 'break-all',
+                }}>
+                  {e.msg}
+                </span>
+              </motion.div>
+            )
+          })}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>
@@ -252,7 +280,9 @@ export default function ThreatFeed({ open }) {
         <span style={{ fontSize: 9, color: '#2a2a2a' }}>
           {paused ? 'PAUSED' : mockMode ? 'DEMO' : 'LIVE'} · {entries.length} events
         </span>
-        <span style={{ fontSize: 9, color: '#1a1a1a', marginLeft: 'auto' }}>NIDS v1.0 · KDD+</span>
+        <span style={{ fontSize: 9, color: '#1a1a1a', marginLeft: 'auto' }}>
+          NIDS v1.0 · {modelLabel}
+        </span>
       </div>
     </motion.div>
   )

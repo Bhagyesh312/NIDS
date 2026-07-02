@@ -10,21 +10,25 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 @router.get("", response_model=list[AlertOut])
 def get_alerts(
-    db:       Session  = Depends(get_db),
-    limit:    int      = Query(50, ge=1, le=500),
-    offset:   int      = Query(0, ge=0),
-    type:     Optional[str] = Query(None),   # filter by prediction type
-    source:   Optional[str] = Query(None),   # 'single' or 'batch'
+    db:           Session  = Depends(get_db),
+    limit:        int      = Query(50, ge=1, le=500),
+    offset:       int      = Query(0, ge=0),
+    attack_type:  Optional[str] = Query(None, alias="type"),   # filter by prediction type
+    source:       Optional[str] = Query(None),                 # 'single', 'batch', or 'simulate'
+    model:        Optional[str] = Query(None),                 # 'kdd' or 'cicids'
 ):
     q = db.query(Prediction)
 
-    if type:
-        q = q.filter(Prediction.prediction == type)
+    if attack_type:
+        q = q.filter(Prediction.prediction == attack_type)
     if source:
         q = q.filter(Prediction.source == source)
+    if model in ('kdd', 'cicids'):
+        q = q.filter(Prediction.model_used == model)
 
-    # Exclude normal traffic — only return attacks
-    q = q.filter(Prediction.prediction != 'Normal')
+    # Determine normal label based on model context
+    normal_labels = ['Normal', 'Benign']
+    q = q.filter(Prediction.prediction.notin_(normal_labels))
 
     return q.order_by(desc(Prediction.created_at)).offset(offset).limit(limit).all()
 
@@ -33,7 +37,7 @@ def get_alerts(
 def get_alert_count(db: Session = Depends(get_db)):
     """Returns unread attack count for the sidebar badge."""
     count = db.query(Prediction).filter(
-        Prediction.prediction != 'Normal'
+        Prediction.prediction.notin_(['Normal', 'Benign'])
     ).count()
     return {"count": count}
 

@@ -1,13 +1,20 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { CATEGORY_COLORS } from '../lib/colors'
-import { Terminal, WifiOff } from 'lucide-react'
+import { Terminal } from 'lucide-react'
 import { useReady } from '../lib/readyContext'
-import { useMockMode } from '../lib/mockModeContext'
-import UIverseToggle from './UIverseToggle'
+import { useModel } from '../lib/modelContext'
 
+/**
+ * Header — page title + subtitle + dataset toggle (NSL-KDD ↔ CICIDS2017) + threat feed + live dot.
+ * Demo/API toggle has been moved to Settings → Backend API.
+ */
 export default function Header({ title, subtitle, onFeedToggle, feedOpen }) {
   const ready = useReady()
-  const { mockMode, setMockMode } = useMockMode()
+  const { activeModel, setActiveModel } = useModel()
+
+  const kddColor   = '#3b82f6'
+  const cicidsColor= '#a78bfa'
+  const liveColor  = CATEGORY_COLORS.Normal
 
   return (
     <motion.div
@@ -16,38 +23,8 @@ export default function Header({ title, subtitle, onFeedToggle, feedOpen }) {
       transition={{ duration: 0.35, ease: 'easeOut' }}
       style={{ marginBottom: 24 }}
     >
-      {/* Mock mode banner */}
-      <AnimatePresence>
-        {mockMode && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-            style={{ overflow: 'hidden', marginBottom: 14 }}
-          >
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'rgba(239,159,39,0.06)',
-              border: '1px solid rgba(239,159,39,0.2)',
-              borderRadius: 8, padding: '9px 14px',
-            }}>
-              <WifiOff size={13} color="#EF9F27" />
-              <span style={{ fontSize: 12, color: '#EF9F27', flex: 1 }}>
-                Running in <strong>Demo mode</strong> — charts and alerts use mock data.
-                Connect the FastAPI backend and switch to <strong>API mode</strong> for live predictions.
-              </span>
-              {/* UIverse toggle — Demo / API */}
-              <UIverseToggle
-                checked={!mockMode}
-                onChange={(val) => setMockMode(!val)}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Left — title + subtitle */}
         <div>
           <motion.h1
             initial={{ opacity: 0, x: -12 }}
@@ -69,24 +46,48 @@ export default function Header({ title, subtitle, onFeedToggle, feedOpen }) {
           )}
         </div>
 
+        {/* Right — dataset toggle + threat feed + live dot */}
         <motion.div
           initial={{ opacity: 0, x: 10 }}
           animate={ready ? { opacity: 1, x: 0 } : { opacity: 0, x: 10 }}
           transition={{ duration: 0.4, delay: 0.1 }}
           style={{ display: 'flex', alignItems: 'center', gap: 10 }}
         >
-          {/* Mock mode toggle in header when NOT in demo mode */}
-          {!mockMode && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <UIverseToggle
-                checked={!mockMode}
-                onChange={(val) => setMockMode(!val)}
-              />
-              <span style={{ fontSize: 11, color: '#3b82f6' }}>API</span>
-            </div>
-          )}
+          {/* ── Dataset toggle: NSL-KDD ↔ CICIDS2017 ── */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            background: '#111', border: '1px solid #2a2a2a',
+            borderRadius: 8, padding: '3px',
+            gap: 2,
+          }}>
+            {[
+              { id: 'kdd',    label: 'NSL-KDD',   color: kddColor    },
+              { id: 'cicids', label: 'CICIDS2017', color: cicidsColor },
+            ].map(opt => {
+              const isActive = activeModel === opt.id
+              return (
+                <motion.button
+                  key={opt.id}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setActiveModel(opt.id)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 5,
+                    border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: isActive ? 600 : 400,
+                    background: isActive ? `${opt.color}18` : 'transparent',
+                    color: isActive ? opt.color : '#555',
+                    transition: 'all 0.15s',
+                    outline: isActive ? `1px solid ${opt.color}30` : 'none',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                >
+                  {opt.label}
+                </motion.button>
+              )
+            })}
+          </div>
 
-          {/* Threat feed toggle */}
+          {/* Threat Feed toggle — only on Dashboard */}
           {onFeedToggle && (
             <motion.button
               whileHover={{ borderColor: '#3b82f6', color: '#ccc' }}
@@ -113,14 +114,12 @@ export default function Header({ title, subtitle, onFeedToggle, feedOpen }) {
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               style={{
                 width: 6, height: 6, borderRadius: '50%',
-                background: mockMode ? '#EF9F27' : CATEGORY_COLORS.Normal,
+                background: liveColor,
                 display: 'inline-block',
-                boxShadow: `0 0 6px ${mockMode ? '#EF9F27' : CATEGORY_COLORS.Normal}`,
+                boxShadow: `0 0 6px ${liveColor}`,
               }}
             />
-            <span style={{ fontSize: 12, color: '#555' }}>
-              {mockMode ? 'Demo' : 'Live'}
-            </span>
+            <span style={{ fontSize: 12, color: '#555' }}>Live</span>
           </div>
         </motion.div>
       </div>

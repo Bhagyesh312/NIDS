@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 
 from database import engine, Base
-import models   # registers all tables with Base
 import ml
-from routes import predict, alerts, stats, reports
+from routes import predict, alerts, stats, reports, simulate
 
 # ── Startup / shutdown ────────────────────────────────────────
 @asynccontextmanager
@@ -15,6 +15,19 @@ async def lifespan(app: FastAPI):
     # Create all DB tables if they don't exist
     Base.metadata.create_all(bind=engine)
     print("✓ Database tables ready")
+
+    # Add model_used column if it doesn't exist (migration for existing DBs — PostgreSQL only)
+    if engine.dialect.name == 'postgresql':
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS model_used VARCHAR(10) DEFAULT 'kdd'"
+                ))
+                conn.commit()
+                print("✓ model_used column ensured")
+            except Exception as e:
+                print(f"  model_used column note: {e}")
+
     # Load ML model + preprocessors
     ml.load_artifacts()
     yield
@@ -56,6 +69,7 @@ app.include_router(predict.router)
 app.include_router(alerts.router)
 app.include_router(stats.router)
 app.include_router(reports.router)
+app.include_router(simulate.router)
 
 # ── Root endpoints ────────────────────────────────────────────
 @app.get("/", tags=["health"])

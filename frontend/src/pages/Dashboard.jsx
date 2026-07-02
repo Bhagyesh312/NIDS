@@ -6,24 +6,36 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Header from '../components/Header'
 import StatCards from '../components/StatCards'
 import Badge from '../components/Badge'
-import { CATEGORY_COLORS, categoryColors, CATEGORIES } from '../lib/colors'
+import { CATEGORY_COLORS, CATEGORIES, CICIDS_CATEGORIES, getLabelColor } from '../lib/colors'
 import { useState, useEffect, useCallback } from 'react'
-import { Command, X } from 'lucide-react'
+import { Command, X, Play, Square, Activity } from 'lucide-react'
 import { useReady } from '../lib/readyContext'
 import { useMockMode } from '../lib/mockModeContext'
 import { useRefreshSettings } from '../lib/refreshContext'
-import { getStats, getTraffic, getAlerts } from '../lib/api'
+import { useModel } from '../lib/modelContext'
+import { getStats, getTraffic, getAlerts, startSimulation, stopSimulation, getSimStatus } from '../lib/api'
 
 // ── Mock fallback data ───────────────────────────────────────────────────────
 
-const MOCK_DISTRIBUTION = [
+const MOCK_DISTRIBUTION_KDD = [
   { name: 'Normal', value: 67343 },
   { name: 'DoS',    value: 45927 },
   { name: 'Probe',  value: 11656 },
   { name: 'R2L',    value: 995   },
   { name: 'U2R',    value: 52    },
 ]
-const MOCK_TOTAL = 125973
+
+const MOCK_DISTRIBUTION_CICIDS = [
+  { name: 'Benign',     value: 1839313 },
+  { name: 'DoS',        value: 87000   },
+  { name: 'DDoS',       value: 41835   },
+  { name: 'PortScan',   value: 23821   },
+  { name: 'BruteForce', value: 2075    },
+  { name: 'Bot',        value: 293     },
+]
+
+const MOCK_TOTAL_KDD    = 125973
+const MOCK_TOTAL_CICIDS = 1979513
 
 const MOCK_TRAFFIC = {
   '6h': [
@@ -55,7 +67,7 @@ const MOCK_TRAFFIC = {
   ],
 }
 
-const MOCK_ALERTS = [
+const MOCK_ALERTS_KDD = [
   { id: 1,  type: 'DoS',   src: '192.168.1.104', dst: '10.0.0.1',  conf: 98.2, time: '2m ago'  },
   { id: 2,  type: 'Probe', src: '172.16.0.55',   dst: '10.0.0.5',  conf: 94.7, time: '8m ago'  },
   { id: 3,  type: 'R2L',   src: '203.0.113.42',  dst: '10.0.0.12', conf: 89.1, time: '15m ago' },
@@ -66,6 +78,19 @@ const MOCK_ALERTS = [
   { id: 8,  type: 'R2L',   src: '172.20.5.11',   dst: '10.0.0.6',  conf: 87.4, time: '1h ago'  },
   { id: 9,  type: 'Normal',src: '192.168.0.14',  dst: '10.0.0.4',  conf: 99.8, time: '1h ago'  },
   { id: 10, type: 'U2R',   src: '10.0.2.33',     dst: '10.0.0.9',  conf: 81.2, time: '2h ago'  },
+]
+
+const MOCK_ALERTS_CICIDS = [
+  { id: 1,  type: 'DoS',        src: '192.168.1.104', dst: '10.0.0.1',  conf: 99.1, time: '2m ago'  },
+  { id: 2,  type: 'DDoS',       src: '172.16.0.55',   dst: '10.0.0.5',  conf: 98.4, time: '5m ago'  },
+  { id: 3,  type: 'PortScan',   src: '203.0.113.42',  dst: '10.0.0.12', conf: 96.7, time: '12m ago' },
+  { id: 4,  type: 'BruteForce', src: '198.51.100.23', dst: '10.0.0.1',  conf: 94.2, time: '18m ago' },
+  { id: 5,  type: 'BruteForce', src: '192.168.1.200', dst: '10.0.0.8',  conf: 92.8, time: '31m ago' },
+  { id: 6,  type: 'Bot',        src: '10.0.0.99',     dst: '185.0.0.1', conf: 88.3, time: '44m ago' },
+  { id: 7,  type: 'DoS',        src: '10.10.1.88',    dst: '10.0.0.2',  conf: 97.6, time: '1h ago'  },
+  { id: 8,  type: 'DDoS',       src: '172.20.5.11',   dst: '10.0.0.6',  conf: 99.3, time: '1h ago'  },
+  { id: 9,  type: 'Benign',     src: '192.168.0.14',  dst: '10.0.0.4',  conf: 99.9, time: '1h ago'  },
+  { id: 10, type: 'Infiltration',src:'10.0.2.33',      dst: '10.0.0.9',  conf: 87.9, time: '2h ago'  },
 ]
 
 // Normalize an alert row from the backend into the shape the table needs
@@ -80,9 +105,7 @@ function normalizeAlert(a) {
   }
 }
 
-const PIE_COLORS   = categoryColors
-const TIME_RANGES  = ['6h', '12h', '24h', '7d']
-const ATTACK_FILTERS = ['All', ...CATEGORIES]
+const TIME_RANGES = ['6h', '12h', '24h', '7d']
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -133,73 +156,141 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
   const ready                             = useReady()
   const { mockMode }                      = useMockMode()
   const { autoRefresh, refreshRate }      = useRefreshSettings()
+  const { activeModel }                   = useModel()
   const [hint, setHint]                   = useState(() => !localStorage.getItem('cmd-hint-dismissed'))
   const [timeRange, setTimeRange]         = useState('24h')
   const [alertFilter, setAlertFilter]     = useState('All')
 
   // ── Real data state ──────────────────────────────────────────
-  const [distribution, setDistribution]   = useState(MOCK_DISTRIBUTION)
-  const [total, setTotal]                 = useState(MOCK_TOTAL)
+  const [distribution, setDistribution]   = useState(MOCK_DISTRIBUTION_KDD)
+  const [total, setTotal]                 = useState(MOCK_TOTAL_KDD)
   const [trafficData, setTrafficData]     = useState(MOCK_TRAFFIC)
-  const [alerts, setAlerts]               = useState(MOCK_ALERTS)
+  const [alerts, setAlerts] = useState(MOCK_ALERTS_KDD)
+
+  // ── Live simulation state ────────────────────────────────────
+  const [simRunning,  setSimRunning]  = useState(false)
+  const [simStats,    setSimStats]    = useState({ total_sent: 0, attacks_found: 0 })
+  const [simLoading,  setSimLoading]  = useState(false)
+  const [simInterval, setSimInterval] = useState('5')
+  const [simBatch,    setSimBatch]    = useState('5')
+
+  // Reset alert filter when model changes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setAlertFilter('All') }, [activeModel])
+  const isCicids      = activeModel === 'cicids'
+  const normalLabel   = isCicids ? 'Benign' : 'Normal'
+  const MOCK_DIST     = isCicids ? MOCK_DISTRIBUTION_CICIDS : MOCK_DISTRIBUTION_KDD
+  const MOCK_TOT      = isCicids ? MOCK_TOTAL_CICIDS        : MOCK_TOTAL_KDD
+  // All attack categories for this model (excluding normal)
+  const attackCats    = isCicids
+    ? CICIDS_CATEGORIES.filter(c => c !== 'Benign')
+    : CATEGORIES.filter(c => c !== 'Normal')
+  const ATTACK_FILTERS = ['All', ...attackCats]
+
+  // Dynamic pie colors from the distribution data
+  const getPieColor = (name) => getLabelColor(name)
 
   useEffect(() => { document.title = 'NIDS · Dashboard' }, [])
 
-  // Fetch distribution + stat totals
+  // Fetch distribution + stat totals — re-runs on model change
   useEffect(() => {
-    if (mockMode) { setDistribution(MOCK_DISTRIBUTION); setTotal(MOCK_TOTAL); return }
-    getStats()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (mockMode) { setDistribution(MOCK_DIST); setTotal(MOCK_TOT); return }
+    getStats(activeModel)
       .then(res => {
         const d = res.data
         if (d.distribution?.length) {
-          // Ensure all 5 categories are represented (backend only returns what's in DB)
-          const map = Object.fromEntries(d.distribution.map(x => [x.name, x.value]))
-          const full = CATEGORIES.map(name => ({ name, value: map[name] ?? 0 }))
-          setDistribution(full)
-          setTotal(d.total ?? MOCK_TOTAL)
+          setDistribution(d.distribution)
+          setTotal(d.total ?? MOCK_TOT)
+        } else {
+          setDistribution(MOCK_DIST)
+          setTotal(MOCK_TOT)
         }
       })
-      .catch(() => { setDistribution(MOCK_DISTRIBUTION); setTotal(MOCK_TOTAL) })
-  }, [mockMode])
+      .catch(() => { setDistribution(MOCK_DIST); setTotal(MOCK_TOT) })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mockMode, activeModel])
 
   // Fetch traffic chart data for current time range
   const fetchTraffic = useCallback((range) => {
     if (mockMode) return
-    getTraffic(range)
+    getTraffic(range, activeModel)
       .then(res => {
         if (res.data?.length) {
           setTrafficData(prev => ({ ...prev, [range]: res.data }))
         }
-        // else keep mock for this range
       })
       .catch(() => {})
-  }, [mockMode])
+  }, [mockMode, activeModel])
+
+  // Reset traffic cache and re-fetch when model changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTrafficData(MOCK_TRAFFIC)
+    fetchTraffic(timeRange)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModel])
 
   useEffect(() => { fetchTraffic(timeRange) }, [timeRange, fetchTraffic])
 
-  // Fetch recent alerts for dashboard table
+  // Fetch recent alerts — re-runs on model change
   useEffect(() => {
-    if (mockMode) { setAlerts(MOCK_ALERTS); return }
-    // Get all predictions including normal for the dashboard table
-    getAlerts({ limit: 10 })
+    const mockAlerts = activeModel === 'cicids' ? MOCK_ALERTS_CICIDS : MOCK_ALERTS_KDD
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (mockMode) { setAlerts(mockAlerts); return }
+    getAlerts({ limit: 10, model: activeModel })
       .then(res => {
         if (res.data?.length) setAlerts(res.data.map(normalizeAlert))
-        else setAlerts(MOCK_ALERTS)
+        else setAlerts(mockAlerts)
       })
-      .catch(() => setAlerts(MOCK_ALERTS))
-  }, [mockMode])
+      .catch(() => setAlerts(mockAlerts))
+  }, [mockMode, activeModel])
 
   // Auto-refresh alerts using settings-controlled interval
   useEffect(() => {
     if (mockMode || !autoRefresh) return
     const ms = parseInt(refreshRate, 10) * 1000
     const id = setInterval(() => {
-      getAlerts({ limit: 10 })
+      getAlerts({ limit: 10, model: activeModel })
         .then(res => { if (res.data?.length) setAlerts(res.data.map(normalizeAlert)) })
         .catch(() => {})
     }, ms)
     return () => clearInterval(id)
-  }, [mockMode, autoRefresh, refreshRate])
+  }, [mockMode, autoRefresh, refreshRate, activeModel])
+
+  // ── Simulation helpers ───────────────────────────────────────
+  // Poll sim status while running (every 3s)
+  useEffect(() => {
+    if (!simRunning || mockMode) return
+    const id = setInterval(() => {
+      getSimStatus()
+        .then(r => {
+          setSimStats({ total_sent: r.data.total_sent, attacks_found: r.data.attacks_found })
+          if (!r.data.running) setSimRunning(false)
+        })
+        .catch(() => {})
+    }, 3000)
+    return () => clearInterval(id)
+  }, [simRunning, mockMode])
+
+  const handleSimToggle = async () => {
+    if (simLoading) return
+    setSimLoading(true)
+    try {
+      if (simRunning) {
+        await stopSimulation()
+        setSimRunning(false)
+      } else {
+        const res = await startSimulation(activeModel, parseFloat(simInterval), parseInt(simBatch))
+        setSimRunning(res.data.running || res.data.status === 'started' || res.data.status === 'already_running')
+        setSimStats({ total_sent: res.data.total_sent || 0, attacks_found: res.data.attacks_found || 0 })
+      }
+    } catch {
+      // backend offline — fail silently
+    } finally {
+      setSimLoading(false)
+    }
+  }
 
   const trafficChartData = trafficData[timeRange] ?? MOCK_TRAFFIC[timeRange]
 
@@ -207,7 +298,8 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
     ? alerts
     : alerts.filter(a => a.type === alertFilter)
 
-  const normalItem = distribution.find(d => d.name === 'Normal')
+  // For the donut centre text — find the "normal" entry by label
+  const normalItem = distribution.find(d => d.name === normalLabel)
   const normalPct  = total > 0 && normalItem
     ? ((normalItem.value / total) * 100).toFixed(1)
     : '53.4'
@@ -254,6 +346,89 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
 
       {/* Stat cards — now fetch real data via StatCards component */}
       <StatCards />
+
+      {/* ── Live Simulation Panel ─────────────────────────────── */}
+      {!mockMode && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={ready ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          transition={{ duration: 0.35, delay: 0.18 }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: simRunning ? 'rgba(34,197,94,0.04)' : '#111',
+            border: `1px solid ${simRunning ? '#22c55e30' : '#1f1f1f'}`,
+            borderRadius: 8, padding: '10px 16px', marginBottom: 12,
+            transition: 'all 0.3s',
+          }}
+        >
+          {/* Status dot */}
+          <motion.div
+            animate={simRunning ? { opacity: [1, 0.3, 1], scale: [1, 1.2, 1] } : { opacity: 0.3 }}
+            transition={simRunning ? { duration: 1.5, repeat: Infinity } : {}}
+            style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+              background: simRunning ? '#22c55e' : '#333' }}
+          />
+
+          <Activity size={13} color={simRunning ? '#22c55e' : '#444'} />
+
+          <span style={{ fontSize: 12, color: simRunning ? '#22c55e' : '#555', fontWeight: 500 }}>
+            {simRunning ? 'Simulation running' : 'Live Simulation'}
+          </span>
+
+          {simRunning && (
+            <span style={{ fontSize: 11, color: '#444', fontFamily: 'monospace' }}>
+              {simStats.total_sent} sent · {simStats.attacks_found} attacks
+            </span>
+          )}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Interval selector */}
+            {!simRunning && (
+              <>
+                <span style={{ fontSize: 11, color: '#444' }}>every</span>
+                <select value={simInterval} onChange={e => setSimInterval(e.target.value)}
+                  style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 5,
+                    color: '#888', fontSize: 11, padding: '3px 6px', outline: 'none', cursor: 'pointer' }}>
+                  {['2','5','10','15','30'].map(v => (
+                    <option key={v} value={v}>{v}s</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11, color: '#444' }}>batch</span>
+                <select value={simBatch} onChange={e => setSimBatch(e.target.value)}
+                  style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 5,
+                    color: '#888', fontSize: 11, padding: '3px 6px', outline: 'none', cursor: 'pointer' }}>
+                  {['1','3','5','10','20'].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 10, color: '#444' }}>
+                  ({activeModel === 'cicids' ? 'CICIDS2017' : 'NSL-KDD'})
+                </span>
+              </>
+            )}
+
+            {/* Start / Stop button */}
+            <motion.button
+              whileHover={{ borderColor: simRunning ? '#ef4444' : '#22c55e' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSimToggle}
+              disabled={simLoading}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: 'transparent',
+                border: `1px solid ${simRunning ? '#ef444430' : '#2a2a2a'}`,
+                borderRadius: 6, padding: '5px 12px', cursor: 'pointer',
+                color: simRunning ? '#ef4444' : '#555', fontSize: 12,
+                opacity: simLoading ? 0.5 : 1, transition: 'all 0.15s',
+              }}
+            >
+              {simRunning
+                ? <><Square size={11} /> Stop</>
+                : <><Play  size={11} /> Start</>}
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Traffic chart ─────────────────────────────────────── */}
       <motion.div {...fadeUp(0.32, ready)} style={{ ...card, marginBottom: 12 }}>
@@ -309,7 +484,9 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
         {/* Donut — distribution from /stats */}
         <motion.div {...fadeUp(0.42, ready)} style={{ ...card, display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 2 }}>Distribution</div>
-          <div style={{ fontSize: 11, color: '#333', marginBottom: 12 }}>{total.toLocaleString()} total flows</div>
+          <div style={{ fontSize: 11, color: '#333', marginBottom: 12 }}>
+            {total.toLocaleString()} total · {isCicids ? 'CICIDS2017' : 'NSL-KDD'}
+          </div>
 
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
             <ResponsiveContainer width={200} height={200}>
@@ -320,7 +497,9 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
                   dataKey="value" paddingAngle={3}
                   animationBegin={ready ? 400 : 99999} animationDuration={ready ? 1200 : 0} stroke="none"
                 >
-                  {distribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} opacity={0.9} />)}
+                  {distribution.map((d) => (
+                    <Cell key={d.name} fill={getPieColor(d.name)} opacity={0.9} />
+                  ))}
                 </Pie>
                 <Tooltip content={<TT />} />
               </PieChart>
@@ -331,29 +510,32 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
               textAlign: 'center', pointerEvents: 'none',
             }}>
               <div style={{ fontSize: 20, fontWeight: 700, color: '#f0f0f0', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{normalPct}%</div>
-              <div style={{ fontSize: 10, color: '#444', marginTop: 3 }}>Normal</div>
+              <div style={{ fontSize: 10, color: '#444', marginTop: 3 }}>{normalLabel}</div>
             </div>
           </div>
 
           <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {distribution.map((d, i) => {
-              const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0'
+            {distribution.map((d) => {
+              const pct   = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0'
+              const color = getPieColor(d.name)
               return (
                 <motion.div key={d.name}
                   initial={{ opacity: 0, x: -10 }} animate={ready ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
-                  transition={{ delay: 0.6 + i * 0.07 }}
+                  transition={{ delay: 0.6 }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 2, background: PIE_COLORS[i], flexShrink: 0 }} />
-                    <span style={{ color: '#888', fontSize: 11, flex: 1 }}>{d.name}</span>
+                    <span style={{ width: 7, height: 7, borderRadius: 2, background: color, flexShrink: 0 }} />
+                    <span style={{ color: '#888', fontSize: 11, flex: 1 }}>
+                      {d.name.replace('Web Attack \uFFFD ', 'Web/')}
+                    </span>
                     <span style={{ color: '#555', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
                     <span style={{ color: '#333', fontSize: 11, fontVariantNumeric: 'tabular-nums', width: 44, textAlign: 'right' }}>{d.value.toLocaleString()}</span>
                   </div>
                   <div style={{ height: 2, background: '#1f1f1f', borderRadius: 2 }}>
                     <motion.div
                       initial={{ width: 0 }} animate={ready ? { width: `${pct}%` } : { width: 0 }}
-                      transition={{ delay: 0.7 + i * 0.07, duration: 0.8, ease: 'easeOut' }}
-                      style={{ height: '100%', background: PIE_COLORS[i], borderRadius: 2, opacity: 0.7 }}
+                      transition={{ delay: 0.7, duration: 0.8, ease: 'easeOut' }}
+                      style={{ height: '100%', background: color, borderRadius: 2, opacity: 0.7 }}
                     />
                   </div>
                 </motion.div>
@@ -371,12 +553,14 @@ export default function Dashboard({ feedOpen, onFeedToggle }) {
                 {filteredAlerts.length} shown
               </span>
             </span>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {ATTACK_FILTERS.map(f => (
                 <FilterBtn
                   key={f} label={f} active={alertFilter === f}
-                  color={f === 'All' ? undefined : CATEGORY_COLORS[f]}
-                  onClick={() => setAlertFilter(f)}
+                  color={f === 'All' ? undefined : getLabelColor(f)}
+                  onClick={() => {
+                    setAlertFilter(f)
+                  }}
                 />
               ))}
             </div>

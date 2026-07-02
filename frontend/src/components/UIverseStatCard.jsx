@@ -4,9 +4,14 @@
  * Theme: adapted for NIDS — each card shows attack category stats
  */
 
+import { useState } from 'react'
 import './UIverseStatCard.css'
 
 export default function UIverseStatCard({ label, value, suffix = '', subLabel, color, icon: Icon }) {
+  // Stable barcode ID — generated once via lazy useState initialiser (pure, no side-effects)
+  const [barcodeId] = useState(
+    () => Math.random().toString(36).slice(2, 8).toUpperCase()
+  )
   return (
     <div className="ticket-wrapper">
       <div className="ticket">
@@ -55,7 +60,7 @@ export default function UIverseStatCard({ label, value, suffix = '', subLabel, c
         <div className="t-stub">
           <div className="t-barcode-container">
             <div className="t-barcode" />
-            <div className="t-barcode-id">NIDS-ML-{Math.random().toString(36).slice(2,8).toUpperCase()}</div>
+            <div className="t-barcode-id">NIDS-ML-{barcodeId}</div>
           </div>
           <div className="t-admit">
             <div className="t-admit-text">{subLabel || 'Score'}</div>
